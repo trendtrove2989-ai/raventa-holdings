@@ -6054,13 +6054,16 @@ function calculateEditBudget() {
         document.getElementById('edit-calculated-results').style.display = 'block';
     }
 }
-
 function updateBudget() {
     showLoader();
     setTimeout(() => {
         if (!currentEditingProfileId) { hideLoader(); return; }
 
         const profile = invoices.find(inv => inv.id === currentEditingProfileId);
+        
+        // 1. Capture the Old Budget
+        const oldBudget = profile.totalBudget;
+
         const newTotalBudget = parseFloat(document.getElementById('edit-total-budget').value);
         const newServiceCharges = parseFloat(document.getElementById('edit-service-charges').value);
 
@@ -6080,6 +6083,20 @@ function updateBudget() {
                 transportAmount: transportAmount,
                 dailyBudget: dailyBudget
             });
+
+            // --- NEW NOTIFICATION LOGIC START ---
+            const notifMessage = `Admin changed your profile of the passenger ${profile.passengerName} from budget $${oldBudget.toFixed(2)} to budget $${newTotalBudget.toFixed(2)}`;
+
+            // 1. Notify the Creator (Passenger Agent)
+            if (profile.passengerId) {
+                window.sendSystemNotification(profile.passengerId, notifMessage);
+            }
+
+            // 2. Notify the Driver (if assigned)
+            if (profile.driverId) {
+                window.sendSystemNotification(profile.driverId, notifMessage);
+            }
+            // --- NEW NOTIFICATION LOGIC END ---
         }
 
         closeEditBudgetModal();
@@ -7801,7 +7818,7 @@ function calculateAndCreateInvoice() {
         // Calculate transport amount
         const transportAmount = totalBudget - serviceCharges - driverCharges;
         const monthlyDays = parseInt(selectedDaysPerWeek) * 4; // 4 weeks in a month
-        const dailyBudget = transportAmount / monthlyDays;
+        const dailyBudget = totalBudget / monthlyDays;
 
         // Show calculated results
         // Show calculated results
