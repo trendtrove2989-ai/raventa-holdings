@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Raventa Holds</title>
+    <title>Riventa Holds</title>
     <link rel="icon" href="https://i.ibb.co/QVw6MND/raventa-holds-logo.png" type="image/png">  
       <style>
         :root {
@@ -1349,13 +1349,13 @@ th, td {
 
     <!-- Navbar -->
     <div id="navbar">
-        <div class="logo">RAVENTA HOLDINGS</div>
+        <div class="logo">RIVENTA HOLDINGS</div>
 
     </div>
 
     <div class="container">
         <div class="header">
-            <h1>RAVENTA HOLDINGS</h1>
+            <h1>RIVENTA HOLDINGS</h1>
             <p>Premium Transportation Services Worldwide</p>
         </div>
 
@@ -2600,6 +2600,7 @@ th, td {
         <button class="nav-btn active" onclick="showDriverSection('home')">Home</button>
         <button class="nav-btn" onclick="showDriverSection('dashboard')">Dashboard</button>
         <button class="nav-btn" onclick="showDriverSection('monthly-gross')">Monthly Gross</button>
+        <button class="nav-btn" onclick="showDriverSection('targets')">My Targets</button> <button class="nav-btn" onclick="showDriverSection('invoices')">Assigned profiles</button>
         <button class="nav-btn" onclick="showDriverSection('invoices')">Assigned profiles</button>
         <button class="nav-btn" onclick="showDriverSection('drivers')">Drivers Details</button>
         <button class="nav-btn" onclick="showDriverSection('earnings')">Earnings</button>
@@ -2850,7 +2851,22 @@ th, td {
                     </div>
                 </div>
             </div>
-
+            <div id="driver-targets" class="section">
+                <h3>My Assigned Targets</h3>
+                <div class="table-container">
+                    <table id="driver-targets-table">
+                        <thead>
+                            <tr>
+                                <th>Target Amount</th>
+                                <th>Deadline</th>
+                                <th>Assigned Date</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
             <!-- Settings Section -->
             <div id="driver-settings" class="section">
                 <h3>Account Settings</h3>
@@ -2966,18 +2982,41 @@ th, td {
       // 5. LISTENERS (Keep your website updated automatically)
     
       // A. Load Users & Targets
+// A. Load Users & Targets
       onSnapshot(collection(db, "users"), (snapshot) => {
           window.users = [];
           snapshot.forEach((doc) => window.users.push(doc.data()));
+          
           // Refresh current user data if logged in
-          if (currentUser) {
-              const updatedUser = window.users.find(u => u.id === currentUser.id);
-              if (updatedUser) currentUser = updatedUser;
+          // Use window.currentUser to ensure global access
+          if (window.currentUser || currentUser) {
+              // Handle both variable cases
+              const currentId = window.currentUser ? window.currentUser.id : currentUser.id;
+              const updatedUser = window.users.find(u => u.id === currentId);
+              
+              if (updatedUser) {
+                  // Update the global variables
+                  currentUser = updatedUser;
+                  window.currentUser = updatedUser;
+                  
+                  // CHECK FOR NOTIFICATIONS IMMEDIATELY
+                  if (typeof window.checkLoginNotifications === "function") {
+                      window.checkLoginNotifications();
+                  }
+                  
+                  // Refresh Dashboard Stats Live
+                  if (typeof updateDriverStats === "function") updateDriverStats();
+                  if (typeof updatePassengerStats === "function") updatePassengerStats();
+              }
           }
+          
           if (typeof renderEmployeesTable === "function") renderEmployeesTable();
           if (typeof renderSalarySection === "function") renderSalarySection();
           if (typeof renderAdminTargetsTable === "function") renderAdminTargetsTable();
           if (typeof populatePassengerAgentDropdown === "function") populatePassengerAgentDropdown();
+          
+          // Force table refresh
+          if (typeof refreshAllTables === "function") refreshAllTables();
       });
     
       // B. Load Drivers Details List
@@ -3052,7 +3091,7 @@ th, td {
                 // Create email template parameters
                 const templateParams = {
                     to_email: EMAILJS_CONFIG.ADMIN_EMAIL,
-                    from_name: 'RAVENTA HOLDINGS System',
+                    from_name: 'RIVENTA HOLDINGS System',
                     fullname: userData.fullname,
                     email: userData.email,
                     phone: userData.phone,
@@ -3432,7 +3471,7 @@ function sendPasswordReset() {
     // Prepare email template parameters
     const templateParams = {
         to_email: email, // Send to the user's email, not admin
-        from_name: 'RAVENTA HOLDINGS System',
+        from_name: 'RIVENTA HOLDINGS System',
         subject: 'Password Reset Request',
         username: user.username,
         new_password: newPassword,
@@ -6050,27 +6089,35 @@ function updateBudget() {
 }
 
 function refreshAllTables() {
-    // Refresh admin tables
+    // Refresh admin tables if admin dashboard is active
     if (document.getElementById('admin-dashboard').classList.contains('active')) {
         renderAdminDashboardSection();
         renderAdminProfilesTable();
         renderAdminCancelledTable();
         renderAdminInvoicesTable();
         renderFinanceSection();
+        renderAdminTargetsTable(); // Ensure targets table refreshes
+        renderEmployeesTable();    // Ensure employees table refreshes
     }
     
-    // Refresh passenger tables
+    // Refresh passenger tables if passenger dashboard is active
     if (document.getElementById('passenger-dashboard').classList.contains('active')) {
         renderPassengerDashboardSection();
         renderPassengerProfilesTable();
         updatePassengerStats();
+        renderPassengerTargetsTable(); // Ensure targets refresh
+        renderMonthlyGrossSection();   // Ensure monthly gross refreshes
     }
     
-    // Refresh driver tables
+    // Refresh driver tables if driver dashboard is active
     if (document.getElementById('driver-dashboard').classList.contains('active')) {
         renderDriverDashboardSection();
         renderDriverInvoicesTable();
         renderDriverEarnings();
+        renderDriverTargetsTable(); // New: Updates the targets table
+        renderDriverMonthlyGross(); // New: Updates the monthly gross section
+        renderDriversTable();       // Ensure drivers list refreshes
+        updateDriverStats();        // Ensure top stats refresh
     }
 }
 function renderAdminInvoicesTable() {
@@ -6859,14 +6906,41 @@ function updateServiceChargesStatus(invoiceId, newStatus) {
             userTargets.forEach(target => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${target.target}</td>
+                    <td>${target.admin}</td>
                     <td>${target.deadline}</td>
                     <td><span class="status-${target.status.toLowerCase()}">${target.status}</span></td>
                 `;
                 tbody.appendChild(row);
             });
         }
+function renderDriverTargetsTable() {
+    const tbody = document.querySelector('#driver-targets-table tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    // Safety check if user has targets
+    const userTargets = currentUser.targets || [];
+    
+    if (userTargets.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 20px;">No targets assigned yet</td></tr>`;
+        return;
+    }
+    
+    // Sort by deadline (newest first)
+    userTargets.sort((a, b) => new Date(b.deadline) - new Date(a.deadline));
 
+    userTargets.forEach(target => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>$${parseFloat(target.amount).toFixed(2)}</td>
+            <td>${target.deadline}</td>
+            <td>${target.assignedDate}</td>
+            <td><span class="status-badge ${target.status === 'Completed' ? 'status-paid' : 'status-unpaid'}">${target.status}</span></td>
+        `;
+        tbody.appendChild(row);
+    });
+}
         function renderPassengerSettings() {
             const userInvoices = invoices.filter(inv => inv.passengerId === currentUser.id);
             const pendingPayments = userInvoices.filter(inv => !inv.serviceChargesPaid).length;
@@ -7402,41 +7476,53 @@ function deleteDriver(driverId) {
 }// Update the showDriverSection function to handle the new section
 // Find the existing showDriverSection function and update the switch case:
 function showDriverSection(section) {
+    // Remove active class from all nav buttons
     document.querySelectorAll('#driver-dashboard .nav-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
     
+    // Add active class to clicked button
+    if (event && event.target) {
+        event.target.classList.add('active');
+    }
+    
+    // Hide all sections
     document.querySelectorAll('#driver-dashboard .section').forEach(sec => sec.classList.remove('active'));
-    
+
     // Show selected section
     if (section === 'dashboard') {
         document.getElementById('driver-dashboard-section').classList.add('active');
         renderDriverDashboardSection();
     } else {
-        document.getElementById(`driver-${section}`).classList.add('active');
+        const targetSection = document.getElementById(`driver-${section}`);
+        if (targetSection) {
+            targetSection.classList.add('active');
+        }
     }
-    
+
     // Render section-specific content
     switch(section) {
-        case 'dashboard':
-            renderDriverDashboardSection();
+        case 'dashboard': 
+            renderDriverDashboardSection(); 
             break;
-        case 'home':
-            updateDriverStats();
+        case 'home': 
+            updateDriverStats(); 
             break;
-        case 'monthly-gross':
-            renderDriverMonthlyGross();
+        case 'monthly-gross': 
+            renderDriverMonthlyGross(); 
             break;
-        case 'invoices':
-            renderDriverInvoicesTable();
+        case 'targets': 
+            renderDriverTargetsTable(); 
             break;
-        case 'drivers':
-            renderDriversTable();
+        case 'invoices': 
+            renderDriverInvoicesTable(); 
             break;
-        case 'earnings':
-            renderDriverEarnings();
+        case 'drivers': 
+            renderDriversTable(); 
             break;
-        case 'settings':
-            renderDriverSettings();
+        case 'earnings': 
+            renderDriverEarnings(); 
+            break;
+        case 'settings': 
+            renderDriverSettings(); 
             break;
     }
 }
@@ -8376,17 +8462,18 @@ window.dismissCenterNotifications = function() {
         </div>
     </div>    
     <div id="center-notification-modal" class="invoice-modal" style="z-index: 3000;">
-    <div class="invoice-modal-content" style="max-width: 500px; text-align: center;">
-        <div class="invoice-header">
-            <h2 style="color: var(--accent);">New Notifications</h2>
-        </div>
-        <div id="center-notification-list" style="margin-bottom: 30px; text-align: left;">
+        <div class="invoice-modal-content" style="max-width: 500px; text-align: center;">
+            <button class="close-modal" onclick="dismissCenterNotifications()">×</button> 
+            <div class="invoice-header">
+                <h2 style="color: var(--accent);">New Notifications</h2>
             </div>
-        <button class="bubbles" onclick="dismissCenterNotifications()">
-            <span class="text">Mark as Read & Close</span>
-        </button>
+            <div id="center-notification-list" style="margin-bottom: 30px; text-align: left;">
+            </div>
+            <button class="bubbles" onclick="dismissCenterNotifications()">
+                <span class="text">Mark as Read & Close</span>
+            </button>
+        </div>
     </div>
-</div>
 </body>
 </html>
 
