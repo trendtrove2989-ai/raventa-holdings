@@ -3957,31 +3957,66 @@ function renderFinanceOverview() {
 
 // Update the existing showAdminSection function to handle finance
 function showAdminSection(section) {
-    // ... existing code ...
+    // 1. Remove active class from all buttons
+    document.querySelectorAll('#admin-dashboard .nav-btn').forEach(btn => btn.classList.remove('active'));
     
-    // Render section-specific content
+    // 2. Add active class safely
+    if (window.event && window.event.target && window.event.target.classList.contains('nav-btn')) {
+        window.event.target.classList.add('active');
+    } else {
+        const targetBtn = document.querySelector(`#admin-dashboard .nav-btn[onclick*="'${section}'"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+    }
+    
+    // 3. Hide all sections
+    document.querySelectorAll('#admin-dashboard .section').forEach(sec => sec.classList.remove('active'));
+    
+    // 4. Show selected section
+    if (section === 'dashboard') {
+        document.getElementById('admin-dashboard-section').classList.add('active');
+        renderAdminDashboardSection();
+    } else {
+        const targetSection = document.getElementById(`admin-${section}`);
+        if (targetSection) targetSection.classList.add('active');
+    }
+    
+    // 5. Reset filters logic
+    const currentMonth = getCurrentMonth();
+    if (section === 'dashboard') {
+        document.getElementById('dashboard-month-filter').value = currentMonth;
+        currentDashboardMonth = currentMonth;
+    } else if (section === 'profiles') {
+        document.getElementById('profiles-month-filter').value = currentMonth;
+        currentProfilesMonth = currentMonth;
+    } else if (section === 'cancelled') {
+        document.getElementById('cancelled-month-filter').value = currentMonth;
+        currentCancelledMonth = currentMonth;
+    } else if (section === 'invoices') {
+        document.getElementById('invoices-month-filter').value = currentMonth;
+        currentInvoicesMonth = currentMonth;
+    } else if (section === 'finance') {
+        document.getElementById('finance-month-filter').value = currentMonth;
+        currentFinanceMonth = currentMonth;
+    }
+    
+    // 6. Render content
     switch(section) {
-        case 'dashboard':
-            renderAdminDashboardSection();
+        case 'dashboard': renderAdminDashboardSection(); break;
+        case 'employees': renderEmployeesTable(); break;
+        case 'targets': renderAdminTargetsTable(); break;
+        case 'profiles': renderAdminProfilesTable(); break;
+        case 'cancelled': renderAdminCancelledTable(); break;
+        case 'invoices': renderAdminInvoicesTable(); break;
+        case 'finance': renderFinanceSection(); break;
+        case 'profit': renderProfitSection(); break;
+        case 'expenses': renderExpensesSection(); break;
+        case 'attendance': 
+            if (!document.getElementById('attendance-date-filter').value) {
+                document.getElementById('attendance-date-filter').value = new Date().toISOString().split('T')[0];
+            }
+            renderAttendanceSection(); 
             break;
-        case 'employees':
-            renderEmployeesTable();
-            break;
-        case 'targets':
-            renderAdminTargetsTable();
-            break;
-        case 'profiles':
-            renderAdminProfilesTable();
-            break;
-        case 'cancelled':
-            renderAdminCancelledTable();
-            break;
-        case 'invoices':
-            renderAdminInvoicesTable();
-            break;
-        case 'finance':
-            renderFinanceOverview(); // Default to overview
-            break;
+        case 'split': renderAdminSplitTable(); break;
     }
 }
 
@@ -4982,14 +5017,13 @@ function login() {
     showLoader();
     
     setTimeout(() => {
-        // --- NEW: Block Login between 12:00 AM and 1:00 AM ---
+        // Maintenance check (12AM - 1AM)
         const now = new Date();
-        if (now.getHours() === 0) { // 0 represents the hour from 12:00 AM to 12:59 AM
+        if (now.getHours() === 0) { 
             showNotification('System is under maintenance. Login allowed after 1:00 AM.', 'error');
             hideLoader();
             return;
         }
-        // -----------------------------------------------------
 
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value.trim();
@@ -5000,13 +5034,26 @@ function login() {
             return;
         }
         
-        // Use window.users to ensure we search the data loaded from Firebase
-        const userList = window.users || [];
-        const user = userList.find(u => u.username === username && u.password === password);        
+        const user = window.users.find(u => u.username === username && u.password === password);
+        
         if (user) {
             currentUser = user;
-            user.loginTimes.push(new Date().toISOString());
             
+            // --- FIX START: Save Login Time to Database ---
+            const newLoginTime = new Date().toISOString();
+            
+            // 1. Update local array immediately for UI responsiveness
+            if (!user.loginTimes) user.loginTimes = [];
+            user.loginTimes.push(newLoginTime);
+
+            // 2. Send update to Firebase so Admin sees it instantly
+            if (window.updateDoc && window.db) {
+                window.updateDoc(window.doc(window.db, "users", user.id), { 
+                    loginTimes: user.loginTimes 
+                }).catch(err => console.error("Failed to update online status:", err));
+            }
+            // --- FIX END ---
+
             hideAllSections();
             
             switch (user.role) {
@@ -5014,31 +5061,25 @@ function login() {
                     document.getElementById('admin-dashboard').classList.add('active');
                     document.getElementById('admin-welcome').textContent = `Welcome, ${user.username}`;
                     renderAdminDashboard();
-                    hideLoader();
                     break;
                 case 'passenger':
-                    hideLoader();
                     document.getElementById('passenger-dashboard').classList.add('active');
                     document.getElementById('passenger-welcome').textContent = `Welcome, ${user.username}`;
                     renderPassengerDashboard();
-                    hideLoader(); 
                     break;
                 case 'driver':
                     document.getElementById('driver-dashboard').classList.add('active');
                     document.getElementById('driver-welcome').textContent = `Welcome, ${user.username}`;
                     renderDriverDashboard();
-                    hideLoader();
                     break;
             }
             
             showNotification(`Welcome back, ${user.username}!`, 'success');
-            window.checkLoginNotifications(); // Check for pending messages
+            if (window.checkLoginNotifications) window.checkLoginNotifications();
         } else {
             showNotification('Invalid username or password', 'error');
-            hideLoader();
         }
         
-        // Clear form
         document.getElementById('login-username').value = '';
         document.getElementById('login-password').value = '';
         hideLoader();
@@ -5174,22 +5215,36 @@ function signUp() {
     }, 1500);
 }
 
-        function logout() {
-            showLoader();
+function logout() {
+    showLoader();
+    
+    setTimeout(() => {
+        if (currentUser) {
+            // --- FIX START: Save Logout Time to Database ---
+            const newLogoutTime = new Date().toISOString();
             
-            setTimeout(() => {
-                if (currentUser) {
-                    currentUser.logoutTimes.push(new Date().toISOString());
-                    currentUser = null;
-                }
-                
-                hideAllSections();
-                document.getElementById('auth-section').style.display = 'block';
-                showNotification('Logged out successfully', 'info');
-                
-                hideLoader();
-            }, 1000);
+            // 1. Update local array
+            if (!currentUser.logoutTimes) currentUser.logoutTimes = [];
+            currentUser.logoutTimes.push(newLogoutTime);
+
+            // 2. Send update to Firebase
+            if (window.updateDoc && window.db) {
+                window.updateDoc(window.doc(window.db, "users", currentUser.id), { 
+                    logoutTimes: currentUser.logoutTimes 
+                }).catch(err => console.error("Failed to update offline status:", err));
+            }
+            // --- FIX END ---
+
+            currentUser = null;
         }
+        
+        hideAllSections();
+        document.getElementById('auth-section').style.display = 'block';
+        showNotification('Logged out successfully', 'info');
+        
+        hideLoader();
+    }, 1000);
+}
 
         // Navigation Functions
 function showAdminSection(section) {
@@ -5510,33 +5565,39 @@ function assignTargetToEmployee() {
     showNotification(`Target assigned to ${employee.username}`, 'success');
 }
 
-    function showPassengerSection(section) {
+function showPassengerSection(section) {
+    // 1. Remove active class from all buttons
     document.querySelectorAll('#passenger-dashboard .nav-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
     
+    // 2. Add active class to the correct button safely
+    // If triggered by click, use event.target
+    if (window.event && window.event.target && window.event.target.classList.contains('nav-btn')) {
+        window.event.target.classList.add('active');
+    } else {
+        // If triggered by code (login), find the button manually
+        const targetBtn = document.querySelector(`#passenger-dashboard .nav-btn[onclick*="'${section}'"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+    }
+    
+    // 3. Hide all sections
     document.querySelectorAll('#passenger-dashboard .section').forEach(sec => sec.classList.remove('active'));
     
-    // Show selected section
+    // 4. Show selected section
     if (section === 'dashboard') {
         document.getElementById('passenger-dashboard-section').classList.add('active');
         renderPassengerDashboardSection();
     } else {
-        document.getElementById(`passenger-${section}`).classList.add('active');
+        const targetSection = document.getElementById(`passenger-${section}`);
+        if (targetSection) targetSection.classList.add('active');
     }
     
-    // Render section-specific content
+    // 5. Render specific content
     switch(section) {
         case 'dashboard':
             renderPassengerDashboardSection();
             break;
         case 'monthly-gross':
             renderMonthlyGrossSection();
-            break;
-        case 'fare':
-            // Nothing special needed
-            break;
-        case 'invoice':
-            // This is the "Create Passenger Profile" section
             break;
         case 'profiles':
             renderPassengerProfilesTable();
@@ -5734,27 +5795,47 @@ function renderDriverDashboard() {
 }
 
         // Admin Dashboard Functions
-        function renderEmployeesTable() {
-            const tbody = document.querySelector('#employees-table tbody');
-            tbody.innerHTML = '';
-            
-            users.filter(u => u.role !== 'admin').forEach(user => {
-                const workingHours = calculateWorkingHours(user.id);
-                const earnings = calculateEmployeeEarnings(user.id, 'total');
-                const isOnline = user.loginTimes.length > user.logoutTimes.length;
-                
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${user.id}</td>
-                    <td>${user.username}</td>
-                    <td>${user.role.charAt(0).toUpperCase() + user.role.slice(1)}</td>
-                    <td>${workingHours.toFixed(1)} hours</td>
-                    <td>$${earnings.toFixed(2)}</td>
-                    <td><span class="${isOnline ? 'status-paid' : 'status-unpaid'}">${isOnline ? 'Online' : 'Offline'}</span></td>
-                `;
-                tbody.appendChild(row);
-            });
-        }
+function renderEmployeesTable() {
+    const tbody = document.querySelector('#employees-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    // Filter employees (exclude admin)
+    window.users.filter(u => u.role !== 'admin').forEach(user => {
+        const workingHours = calculateWorkingHours(user.id);
+        const earnings = calculateEmployeeEarnings(user.id, 'total');
+
+        // --- NEW STATUS LOGIC START ---
+        // Get arrays safely (default to empty if they don't exist)
+        const logins = user.loginTimes || [];
+        const logouts = user.logoutTimes || [];
+
+        // Get the very last timestamp from each array
+        // If array is empty, use a very old date as fallback
+        const lastLogin = logins.length > 0 ? logins[logins.length - 1] : "1970-01-01";
+        const lastLogout = logouts.length > 0 ? logouts[logouts.length - 1] : "1970-01-01";
+
+        // Compare strings directly (ISO format allows this)
+        // If Last Login is later (greater) than Last Logout, user is Online.
+        const isOnline = lastLogin > lastLogout;
+        // --- NEW STATUS LOGIC END ---
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${user.id}</td>
+            <td>${user.username}</td>
+            <td>${user.role.charAt(0).toUpperCase() + user.role.slice(1)}</td>
+            <td>${workingHours.toFixed(1)} hours</td>
+            <td>$${earnings.toFixed(2)}</td>
+            <td>
+                <span class="status-badge ${isOnline ? 'status-paid' : 'status-unpaid'}">
+                    ${isOnline ? 'Online' : 'Offline'}
+                </span>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
 function renderAdminDashboardSection() {
     const tbody = document.querySelector('#admin-dashboard-table tbody');
     if (!tbody) return;
@@ -8168,6 +8249,27 @@ function unassignDriverFromProfile(profileId) {
 
         // Initialize the application
         function init() {
+            // --- FIX START: Handle Browser Close / Tab Close ---
+            window.addEventListener('beforeunload', function(event) {
+                if (currentUser) {
+                    // 1. Create timestamp
+                    const newLogoutTime = new Date().toISOString();
+                    
+                    // 2. Update local array to ensure the payload is correct
+                    if (!currentUser.logoutTimes) currentUser.logoutTimes = [];
+                    currentUser.logoutTimes.push(newLogoutTime);
+
+                    // 3. Send update to Firebase immediately
+                    // Note: We do not use logout() here because we don't want to trigger UI animations on a closing window
+                    if (window.updateDoc && window.db) {
+                        window.updateDoc(window.doc(window.db, "users", currentUser.id), { 
+                            logoutTimes: currentUser.logoutTimes 
+                        }).catch(err => console.log("Close update sent"));
+                    }
+                }
+            });
+            // --- FIX END ---
+
             // Set up event listeners for Enter key on login forms
             document.getElementById('login-password').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
