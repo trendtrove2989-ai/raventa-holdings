@@ -5111,7 +5111,7 @@ function signUp() {
         }
         
         // Validate email format
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$  /;
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         if (!emailRegex.test(email)) {
             showNotification('Please enter a valid email address', 'error');
             hideLoader();
@@ -5119,7 +5119,7 @@ function signUp() {
         }
         
         // Validate phone number (basic validation)
-        const phoneRegex = /^[0-9\-\+\s\(\)]{10,}$  /;
+        const phoneRegex = /^[0-9\-\+\s\(\)]{10,}$/;
         if (!phoneRegex.test(phone)) {
             showNotification('Please enter a valid phone number', 'error');
             hideLoader();
