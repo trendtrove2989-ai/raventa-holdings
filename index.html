@@ -4459,24 +4459,73 @@ function renderAdminProfilesTable() {
     const tbody = document.querySelector('#admin-profiles-table tbody');
     tbody.innerHTML = '';
     
-    // Filter by month
+    // Filter profiles that are not yet confirmed or canceled
     const pendingProfiles = invoices.filter(inv => 
-        (inv.pickupStatus === 'no status yet' || !inv.pickupStatus)
+        inv.pickupStatus === 'no status yet' || 
+        inv.pickupStatus === 'booked' || 
+        !inv.pickupStatus
     );
+    
     const filteredProfiles = filterByMonth(pendingProfiles, currentProfilesMonth);
     
     if (filteredProfiles.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="6" style="text-align: center; padding: 20px;">
-                No pending passenger profiles found for selected month
-            </td>
-        `;
+        row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">No pending passenger profiles found for selected month</td>`;
         tbody.appendChild(row);
         return;
     }
     
-    // Initialize admin table choice boxes after rendering
+    const sortedProfiles = sortInvoicesByDate(filteredProfiles);
+    const availableDrivers = users.filter(user => user.role === 'driver');
+    
+    sortedProfiles.forEach(profile => {
+        if (!profile.pickupStatus) { profile.pickupStatus = 'no status yet'; }
+        
+        let pickupStatusText = 'Not Yet';
+        if (profile.pickupStatus === 'pickup confirmed') pickupStatusText = 'Pickup Confirmed';
+        else if (profile.pickupStatus === 'canceled') pickupStatusText = 'Canceled';
+        else if (profile.pickupStatus === 'booked') pickupStatusText = 'Booked'; // Added logic
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${profile.passengerName || 'N/A'}</td>
+            <td>${profile.passengerAgent || 'N/A'}</td>
+            <td>AED ${profile.totalBudget.toFixed(2)}</td>
+            <td>
+                <div class="table-choice-container" id="driver-agent-container-${profile.id}">
+                    <div class="table-choice-box ${profile.driverAgent ? 'selected' : ''}" id="driver-agent-choice-${profile.id}">
+                        <span>${profile.driverAgent || 'Not Assigned Yet'}</span>
+                        <span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        ${availableDrivers.map(driver => 
+                            `<div class="table-choice-option" data-value="${driver.id}">${driver.fullname || driver.username}</div>`
+                        ).join('')}
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="table-choice-container" id="pickup-status-container-${profile.id}">
+                    <div class="table-choice-box ${profile.pickupStatus !== 'no status yet' ? 'selected' : ''}" id="pickup-status-choice-${profile.id}">
+                        <span>${pickupStatusText}</span>
+                        <span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        <div class="table-choice-option" data-value="no status yet">Not Yet</div>
+                        <div class="table-choice-option" data-value="booked">Booked</div> 
+                        <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
+                        <div class="table-choice-option" data-value="canceled">Canceled</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
+                    <span class="text">View Profile</span>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
     initializeAdminTableChoiceBoxes();
 }
 
@@ -4541,8 +4590,9 @@ function renderAdminInvoicesTable() {
                         <span>▼</span>
                     </div>
                     <div class="table-choice-options">
-                        <div class="table-choice-option" data-value="unpaid">Not Yet</div>
-                        <div class="table-choice-option" data-value="paid">Paid</div>
+                        <div class="table-choice-option" data-value="no status yet">Not Yet</div>
+                        <div class="table-choice-option" data-value="booked">Booked</div> <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
+                        <div class="table-choice-option" data-value="canceled">Canceled</div>
                     </div>
                 </div>
             </td>
@@ -4972,19 +5022,21 @@ function fixDropdownPositioning() {
                 notification.classList.remove('show');
             }, 3000);
         }
- function getPickupStatusClass(status) {
+        function getPickupStatusClass(status) {
             switch(status) {
-                case 'pickup confirmed': return 'status-paid';
-                case 'canceled': return 'status-unpaid';
-                default: return 'status-unassigned';
+                case 'pickup confirmed': return 'status-paid';   // Green
+                case 'canceled': return 'status-unpaid';         // Red
+                case 'booked': return 'status-unassigned';       // Yellow/Orange
+                default: return 'status-default';               // Gray
             }
         }
-
+        
         function getPickupStatusText(status) {
             switch(status) {
                 case 'pickup confirmed': return 'Confirmed';
                 case 'canceled': return 'Canceled';
-                default: return 'Pending';
+                case 'booked': return 'Booked';                 // NEW
+                default: return 'Not Yet';
             }
         }
         function hideAllSections() {
@@ -5842,110 +5894,105 @@ function renderAdminDashboardSection() {
     
     tbody.innerHTML = '';
     
-    // Get all profiles (invoices)
-    const allProfiles = invoices;
+    // 1. Filter profiles by the selected month
+    const filteredProfiles = filterByMonth(invoices, currentDashboardMonth);
     
-    if (allProfiles.length === 0) {
+    if (filteredProfiles.length === 0) {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td colspan="6" style="text-align: center; padding: 20px;">
-                No passenger profiles found
+                No passenger profiles found for selected month
             </td>
         `;
         tbody.appendChild(row);
         return;
     }
-    // Sort by date (newest first)
-    const sortedProfiles = sortInvoicesByDate(allProfiles);
+    
+    // 2. Sort by date (newest first)
+    const sortedProfiles = sortInvoicesByDate(filteredProfiles);
+    const availableDrivers = users.filter(user => user.role === 'driver');
     
     sortedProfiles.forEach(profile => {
-        const driver = profile.driverId ? users.find(u => u.id === profile.driverId) : null;
         const passenger = users.find(u => u.id === profile.passengerId);
         
-        // Driver assignment dropdown
-        // Driver assignment with table choice box
-const availableDrivers = users.filter(user => user.role === 'driver');
-driverAssignment = `
-    <div class="table-choice-container" id="dashboard-driver-container-${profile.id}">
-        <div class="table-choice-box ${profile.driverId ? 'selected' : ''}" id="dashboard-driver-choice-${profile.id}">
-            <span>${profile.driverAgent || 'Not Assigned Yet'}</span>
-            <span>▼</span>
-        </div>
-        <div class="table-choice-options">
-        ${availableDrivers.map(driver => 
-            `<div class="table-choice-option" data-value="${driver.id}">${driver.fullname || driver.username}</div>`
-        ).join('')}
-            ${profile.driverId ? `<div class="table-choice-option" data-value="unassign">Unassign Driver</div>` : ''}
-        </div>
-    </div>
-`;
-        
-        
+        // Prepare Driver Assignment HTML (Choice Box)
+        const driverAssignmentHTML = `
+            <div class="table-choice-container" id="dashboard-driver-container-${profile.id}">
+                <div class="table-choice-box ${profile.driverId ? 'selected' : ''}" id="dashboard-driver-choice-${profile.id}">
+                    <span>${profile.driverAgent || 'Not Assigned Yet'}</span>
+                    <span>▼</span>
+                </div>
+                <div class="table-choice-options">
+                ${availableDrivers.map(driver => 
+                    `<div class="table-choice-option" data-value="${driver.id}">${driver.fullname || driver.username}</div>`
+                ).join('')}
+                    ${profile.driverId ? `<div class="table-choice-option" data-value="unassign">Unassign Driver</div>` : ''}
+                </div>
+            </div>
+        `;
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${profile.passengerName || 'N/A'}</td>
             <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
-            <td>AED    ${profile.totalBudget.toFixed(2)}</td>
-            <td>${driverAssignment}</td>
+            <td>AED ${profile.totalBudget.toFixed(2)}</td>
+            <td>${driverAssignmentHTML}</td>
             <td>
                 <span class="status-badge ${getPickupStatusClass(profile.pickupStatus)}">
                     ${getPickupStatusText(profile.pickupStatus)}
                 </span>
             </td>
             <td>
-    <div class="driver-actions">
-        <button class="bubbles btn-small btn-edit" onclick="editProfile('${profile.id}')">
-            <span class="text">Edit</span>
-        </button>
-        <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
-            <span class="text">View</span>
-        </button>
-    </div>
-</td>
+                <div class="driver-actions">
+                    <button class="bubbles btn-small btn-edit" onclick="editProfile('${profile.id}')">
+                        <span class="text">Edit</span>
+                    </button>
+                    <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
+                        <span class="text">View</span>
+                    </button>
+                </div>
+            </td>
         `;
         tbody.appendChild(row);
     });
+
+    // Re-initialize dropdown click listeners for the driver assignment boxes
+    initializeAdminTableChoiceBoxes();
 }
 function renderAdminProfilesTable() {
     const tbody = document.querySelector('#admin-profiles-table tbody');
     tbody.innerHTML = '';
     
-    // Filter profiles that are not yet confirmed or canceled
-    const pendingProfiles = invoices.filter(inv => inv.pickupStatus === 'no status yet' || !inv.pickupStatus);
+    // Include 'booked' in the pending list so admin can still manage them
+    const pendingProfiles = invoices.filter(inv => 
+        inv.pickupStatus === 'no status yet' || 
+        inv.pickupStatus === 'booked' || 
+        !inv.pickupStatus
+    );
     
-    if (pendingProfiles.length === 0) {
+    const filteredProfiles = filterByMonth(pendingProfiles, currentProfilesMonth);
+    
+    if (filteredProfiles.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="6" style="text-align: center; padding: 20px;">
-                No pending passenger profiles found
-            </td>
-        `;
+        row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">No pending/booked profiles for this month</td>`;
         tbody.appendChild(row);
         return;
     }
     
-    // Sort by date (newest first)
-    const sortedProfiles = sortInvoicesByDate(pendingProfiles);
-    
-    // Get all available drivers
+    const sortedProfiles = sortInvoicesByDate(filteredProfiles);
     const availableDrivers = users.filter(user => user.role === 'driver');
     
     sortedProfiles.forEach(profile => {
-        // Initialize pickupStatus if not exists
-        if (!profile.pickupStatus) {
-            profile.pickupStatus = 'no status yet';
-        }
+        if (!profile.pickupStatus) { profile.pickupStatus = 'no status yet'; }
         
-        // Determine display text for pickup status
-        let pickupStatusText = 'Not Yet';
-        if (profile.pickupStatus === 'pickup confirmed') pickupStatusText = 'Pickup Confirmed';
-        else if (profile.pickupStatus === 'canceled') pickupStatusText = 'Canceled';
+        // Get display text
+        const pickupStatusText = getPickupStatusText(profile.pickupStatus);
         
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${profile.passengerName || 'N/A'}</td>
             <td>${profile.passengerAgent || 'N/A'}</td>
-            <td>AED    ${profile.totalBudget.toFixed(2)}</td>
+            <td>AED ${profile.totalBudget.toFixed(2)}</td>
             <td>
                 <div class="table-choice-container" id="driver-agent-container-${profile.id}">
                     <div class="table-choice-box ${profile.driverAgent ? 'selected' : ''}" id="driver-agent-choice-${profile.id}">
@@ -5954,7 +6001,7 @@ function renderAdminProfilesTable() {
                     </div>
                     <div class="table-choice-options">
                         ${availableDrivers.map(driver => 
-                            `<div class="table-choice-option" data-value="${driver.id}">${driver.username}</div>`
+                            `<div class="table-choice-option" data-value="${driver.id}">${driver.fullname || driver.username}</div>`
                         ).join('')}
                     </div>
                 </div>
@@ -5967,6 +6014,7 @@ function renderAdminProfilesTable() {
                     </div>
                     <div class="table-choice-options">
                         <div class="table-choice-option" data-value="no status yet">Not Yet</div>
+                        <div class="table-choice-option" data-value="booked">Booked</div> 
                         <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
                         <div class="table-choice-option" data-value="canceled">Canceled</div>
                     </div>
@@ -5980,8 +6028,6 @@ function renderAdminProfilesTable() {
         `;
         tbody.appendChild(row);
     });
-    
-    // Initialize admin table choice boxes after rendering
     initializeAdminTableChoiceBoxes();
 }
 function renderAdminCancelledTable() {
@@ -6052,7 +6098,6 @@ function updatePickupStatus(profileId, newStatus) {
 
     let updates = { pickupStatus: newStatus };
     
-    // Auto-update other fields based on status logic
     if (newStatus === 'canceled') {
         updates.cancelledDate = getCurrentDateTime().date;
         updates.paymentStatus = 'cancelled';
@@ -6060,8 +6105,8 @@ function updatePickupStatus(profileId, newStatus) {
     if (newStatus === 'pickup confirmed') {
         updates.paymentStatus = 'unpaid';
     }
+    // 'booked' status just saves via the default updates object
 
-    // SAVE TO DATABASE
     if (window.updateDoc && window.db) {
         window.updateDoc(window.doc(window.db, "invoices", profileId), updates);
         showNotification(`Status updated to ${newStatus}`, 'success');
@@ -6088,12 +6133,11 @@ function editProfile(profileId) {
         document.getElementById('edit-total-budget').value = profile.totalBudget;
         document.getElementById('edit-service-charges').value = profile.serviceCharges;
         
-        // Calculate and show initial values
+        // ADD THIS LINE: Populate the note
+        document.getElementById('edit-profile-note').value = profile.note || "";
+        
         calculateEditBudget();
-        
-        // Show modal
         document.getElementById('edit-budget-modal').style.display = 'block';
-        
         hideLoader();
     }, 500);
 }
@@ -6141,12 +6185,13 @@ function updateBudget() {
         if (!currentEditingProfileId) { hideLoader(); return; }
 
         const profile = invoices.find(inv => inv.id === currentEditingProfileId);
-        
-        // 1. Capture the Old Budget
         const oldBudget = profile.totalBudget;
 
         const newTotalBudget = parseFloat(document.getElementById('edit-total-budget').value);
         const newServiceCharges = parseFloat(document.getElementById('edit-service-charges').value);
+        
+        // ADD THIS LINE: Get new note value
+        const newNote = document.getElementById('edit-profile-note').value.trim();
 
         if (isNaN(newTotalBudget) || isNaN(newServiceCharges)) {
             showNotification('Invalid values', 'error'); hideLoader(); return;
@@ -6162,26 +6207,18 @@ function updateBudget() {
                 totalBudget: newTotalBudget,
                 serviceCharges: newServiceCharges,
                 transportAmount: transportAmount,
-                dailyBudget: dailyBudget
+                dailyBudget: dailyBudget,
+                note: newNote // ADD THIS LINE: Save note to Firebase
             });
 
-            // --- NEW NOTIFICATION LOGIC START ---
-            const notifMessage = `Admin changed your profile of the passenger ${profile.passengerName} from budget AED    ${oldBudget.toFixed(2)} to budget AED    ${newTotalBudget.toFixed(2)}`;
-
-            // 1. Notify the Creator (Passenger Agent)
-            if (profile.passengerId) {
-                window.sendSystemNotification(profile.passengerId, notifMessage);
-            }
-
-            // 2. Notify the Driver (if assigned)
-            if (profile.driverId) {
-                window.sendSystemNotification(profile.driverId, notifMessage);
-            }
-            // --- NEW NOTIFICATION LOGIC END ---
+            // Notification logic...
+            const notifMessage = `Admin updated profile for ${profile.passengerName}. New budget: AED ${newTotalBudget.toFixed(2)}. Note: ${newNote}`;
+            if (profile.passengerId) window.sendSystemNotification(profile.passengerId, notifMessage);
+            if (profile.driverId) window.sendSystemNotification(profile.driverId, notifMessage);
         }
 
         closeEditBudgetModal();
-        showNotification('Budget updated successfully', 'success');
+        showNotification('Profile updated successfully', 'success');
         hideLoader();
     }, 1000);
 }
@@ -8445,33 +8482,38 @@ window.dismissCenterNotifications = function() {
     <!-- Edit Budget Modal -->
     <div id="edit-budget-modal" class="invoice-modal">
         <div class="invoice-modal-content" style="max-width: 500px;">
-            <button class="close-modal" onclick="closeEditBudgetModal()">&times;</button>
+            <button class="close-modal" onclick="closeEditBudgetModal()">×</button>
             <div class="invoice-header">
-                <h2>Edit Profile Budget</h2>
-                <p id="edit-profile-id">Profile #</p>
+                <h2>Edit Profile Details</h2> <p id="edit-profile-id">Profile #</p>
             </div>
             
             <div class="invoice-form">
                 <div class="inputbox">
                     <input type="number" id="edit-total-budget" step="0.01" required="required">
-                    <span>Total Budget (AED    )</span>
+                    <span>Total Budget (AED)</span>
                     <i></i>
                 </div>
                 <div class="inputbox">
                     <input type="number" id="edit-service-charges" step="0.01" required="required">
-                    <span>Service Charges (AED    )</span>
+                    <span>Service Charges (AED)</span>
+                    <i></i>
+                </div>
+                
+                <div class="inputbox">
+                    <input type="text" id="edit-profile-note" required="required">
+                    <span>Detail Note (Specifics)</span>
                     <i></i>
                 </div>
                 
                 <div id="edit-calculated-results" style="background: rgba(26, 29, 37, 0.8); padding: 15px; border-radius: 8px; margin: 15px 0; display: none;">
                     <h4>Updated Results:</h4>
-                    <p><strong>New Transport Amount:</strong> AED    <span id="edit-transport-amount-result">0.00</span></p>
-                    <p><strong>New Daily Budget:</strong> AED    <span id="edit-daily-budget-result">0.00</span></p>
+                    <p><strong>New Transport Amount:</strong> AED <span id="edit-transport-amount-result">0.00</span></p>
+                    <p><strong>New Daily Budget:</strong> AED <span id="edit-daily-budget-result">0.00</span></p>
                 </div>
                 
                 <div class="form-row">
                     <button class="bubbles btn-success" onclick="updateBudget()">
-                        <span class="text">Update Budget</span>
+                        <span class="text">Update Profile</span>
                     </button>
                     <button class="bubbles btn-secondary" onclick="closeEditBudgetModal()">
                         <span class="text">Cancel</span>
