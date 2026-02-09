@@ -5438,13 +5438,7 @@ function login() {
     showLoader();
     
     setTimeout(() => {
-        // Maintenance check (12AM - 1AM)
-        const now = new Date();
-        if (now.getHours() === 0) { 
-            showNotification('System is under maintenance. Login allowed after 1:00 AM.', 'error');
-            hideLoader();
-            return;
-        }
+        
 
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value.trim();
