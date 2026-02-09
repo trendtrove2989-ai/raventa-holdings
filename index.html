@@ -1488,7 +1488,6 @@ th, td {
         <button class="nav-btn" onclick="showAdminSection('employees')">Employees</button>
         <button class="nav-btn" onclick="showAdminSection('targets')">Assign Target</button>
         <button class="nav-btn" onclick="showAdminSection('profiles')">Passenger Profiles</button>
-        <button class="nav-btn" onclick="showAdminSection('cancelled')">Cancelled Profiles</button>
         <button class="nav-btn" onclick="showAdminSection('invoices')">Invoices</button>
         <button class="nav-btn" onclick="showAdminSection('split')">Split Profile</button>
         <button class="nav-btn" onclick="showAdminSection('finance')">Finance </button>
@@ -1498,8 +1497,27 @@ th, td {
 
 <!-- Dashboard Section -->
 <div id="admin-dashboard-section" class="section active">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3>Dashboard - All Passenger Profiles</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
+        <h3>Dashboard - Passenger Profiles</h3>
+        
+        <div class="filter-options" style="margin-bottom: 0;">
+            <button class="bubbles btn-small nav-btn active" onclick="filterDashboardByStatus('all', this)">
+                <span class="text">All Profiles</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('no status yet', this)">
+                <span class="text">No Status</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('booked', this)">
+                <span class="text">Booked</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('pickup confirmed', this)">
+                <span class="text">Confirmed</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('canceled', this)">
+                <span class="text">Canceled</span>
+            </button>
+        </div>
+
         <div class="inputbox" style="width: 200px; margin-bottom: 0;">
             <input type="month" id="dashboard-month-filter" required="required">
             <span>Select Month</span>
@@ -1510,7 +1528,7 @@ th, td {
         <table id="admin-dashboard-table">
             <thead>
                 <tr>
-                    <th>Passenger Name</th>
+                    <th>Date created</th><th>Passenger Name</th>
                     <th>Agent Name</th>
                     <th>Total Budget</th>
                     <th>Driver Agent</th>
@@ -2305,7 +2323,7 @@ th, td {
             <table id="passenger-dashboard-table">
                 <thead>
                     <tr>
-                        <th>Profile ID</th>
+                        <th>Date created</th><th>Profile ID</th>
                         <th>Agent Name</th>
                         <th>Total Budget</th>
                         <th>Driver Agent</th>
@@ -2730,7 +2748,7 @@ th, td {
         <table id="driver-dashboard-table">
             <thead>
                 <tr>
-                    <th>Profile ID</th>
+                    <th>Date created</th><th>Profile ID</th>
                     <th>Agent Name</th>
                     <th>Total Budget</th>
                     <th>Driver Agent</th>
@@ -3292,7 +3310,134 @@ function renderAdminSplitTable() {
         tbody.appendChild(row);
     });
 }
+// Add this variable near your other filter variables
+let currentDashboardStatusFilter = 'all';
 
+// Add this function to handle the filter clicks
+window.filterDashboardByStatus = function(status, btnElement) {
+    currentDashboardStatusFilter = status;
+    
+    // Update button visual state
+    const container = btnElement.parentElement;
+    container.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    
+    // Re-render the table
+    renderAdminDashboardSection();
+};
+
+// Update your existing renderAdminDashboardSection function
+window.renderAdminDashboardSection = function() {
+    const dashboardContainer = document.querySelector('#admin-dashboard-section');
+    const tbody = document.querySelector('#admin-dashboard-table tbody');
+    if (!tbody) return;
+
+    // Clean up previous months pending UI
+    const oldToggle = document.getElementById('prev-pending-toggle-btn');
+    if (oldToggle) oldToggle.remove();
+    const oldContainer = document.getElementById('prev-pending-container');
+    if (oldContainer) oldContainer.remove();
+
+    tbody.innerHTML = '';
+
+    const realDate = new Date();
+    const realCurrentMonth = realDate.toISOString().substr(0, 7); 
+    const selectedMonthStr = currentDashboardMonth; 
+
+    // 1. Filter Profiles for the SELECTED month
+    let filteredProfiles = invoices.filter(inv => inv.date.startsWith(selectedMonthStr));
+    
+    // 2. APPLY STATUS FILTER (e.g. from your filter buttons)
+    if (currentDashboardStatusFilter !== 'all') {
+        filteredProfiles = filteredProfiles.filter(inv => {
+            const status = inv.pickupStatus || 'no status yet';
+            return status === currentDashboardStatusFilter;
+        });
+    }
+
+    // 3. Show Previous Pending Logic
+    if (currentDashboardStatusFilter === 'all' || currentDashboardStatusFilter === 'no status yet') {
+        const previousPendingProfiles = invoices.filter(inv => {
+            const invMonth = inv.date.substr(0, 7);
+            return invMonth < realCurrentMonth && 
+                   (inv.pickupStatus === 'no status yet' || !inv.pickupStatus || inv.pickupStatus === 'booked');
+        });
+
+        if (previousPendingProfiles.length > 0 && selectedMonthStr === realCurrentMonth) {
+            renderPreviousPendingSection(dashboardContainer, previousPendingProfiles);
+        }
+    }
+
+    // 4. Render Main Table
+    if (filteredProfiles.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">No profiles found for ${selectedMonthStr}</td></tr>`;
+    } else {
+        const sorted = sortInvoicesByDate(filteredProfiles);
+        const availableDrivers = window.users.filter(user => user.role === 'driver');
+
+        sorted.forEach(profile => {
+            const passenger = window.users.find(u => u.id === profile.passengerId);
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td style="color: var(--accent); font-weight: 600;">${profile.date}</td>
+                <td>${profile.passengerName || 'N/A'}</td>
+                <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
+                <td>AED ${profile.totalBudget.toFixed(2)}</td>
+                <td>
+                    <div class="table-choice-container" id="dash-driver-container-${profile.id}">
+                        <div class="table-choice-box ${profile.driverId ? 'selected' : ''}">
+                            <span>${profile.driverAgent || 'Not Assigned'}</span>
+                            <span>▼</span>
+                        </div>
+                        <div class="table-choice-options">
+                            ${availableDrivers.map(d => `<div class="table-choice-option" data-value="${d.id}">${d.fullname || d.username}</div>`).join('')}
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="status-badge ${getPickupStatusClass(profile.pickupStatus)}">
+                        ${getPickupStatusText(profile.pickupStatus)}
+                    </span>
+                </td>
+                <td>
+                    <div class="driver-actions">
+                        <button class="bubbles btn-small btn-edit" onclick="editProfile('${profile.id}')"><span class="text">Edit</span></button>
+                        <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')"><span class="text">View</span></button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+    initializeAdminTableChoiceBoxes();
+};
+// Helper function to render that "Twist" section (to keep code clean)
+function renderPreviousPendingSection(dashboardContainer, profiles) {
+    const toggleBtn = document.createElement('div');
+    toggleBtn.id = 'prev-pending-toggle-btn';
+    toggleBtn.className = 'previous-pending-toggle';
+    toggleBtn.innerHTML = `<span>⚠️ Outstanding Previous Profiles (${profiles.length})</span><span id="toggle-icon">View ▼</span>`;
+    
+    const container = document.createElement('div');
+    container.id = 'prev-pending-container';
+    container.className = 'previous-pending-container';
+    container.innerHTML = `<table style="width:100%; border-collapse: collapse;"><tbody id="prev-pending-tbody"></tbody></table>`;
+
+    dashboardContainer.insertBefore(toggleBtn, dashboardContainer.querySelector('.table-container'));
+    dashboardContainer.insertBefore(container, dashboardContainer.querySelector('.table-container'));
+
+    const ptbody = document.getElementById('prev-pending-tbody');
+    profiles.forEach(p => {
+        const r = document.createElement('tr');
+        r.innerHTML = `<td style="padding:10px;">${p.passengerName}</td><td style="padding:10px;">${p.date}</td><td style="padding:10px;"><button class="bubbles btn-small" onclick="viewInvoiceDetails('${p.id}')"><span class="text">Update</span></button></td>`;
+        ptbody.appendChild(r);
+    });
+
+    toggleBtn.onclick = () => {
+        container.classList.toggle('active');
+        document.getElementById('toggle-icon').textContent = container.classList.contains('active') ? 'Hide ▲' : 'View ▼';
+    };
+}
 // 3. Step 1: Open Modal to Select Profile
 function openSplitProfileSelector() {
     document.getElementById('split-select-profile-modal').style.display = 'block';
@@ -7475,21 +7620,14 @@ function renderPassengerDashboardSection() {
     
     tbody.innerHTML = '';
     
-    // Get ALL profiles (like admin dashboard)
+    // Get ALL profiles for the system as requested (showing the master view)
     const allProfiles = invoices;
     
     if (allProfiles.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="6" style="text-align: center; padding: 20px;">
-                No passenger profiles found
-            </td>
-        `;
-        tbody.appendChild(row);
+        tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px;">No passenger profiles found</td></tr>`;
         return;
     }
     
-    // Sort by date (newest first)
     const sortedProfiles = sortInvoicesByDate(allProfiles);
     
     sortedProfiles.forEach(profile => {
@@ -7498,10 +7636,11 @@ function renderPassengerDashboardSection() {
         
         const row = document.createElement('tr');
         row.innerHTML = `
+            <td style="color: var(--accent);">${profile.date}</td>
             <td>${profile.id}</td>
             <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
-            <td>AED    ${profile.totalBudget.toFixed(2)}</td>
-            <td>${driver ? driver.username : 'Not Assigned'}</td>
+            <td>AED ${profile.totalBudget.toFixed(2)}</td>
+            <td>${driver ? (driver.fullname || driver.username) : 'Not Assigned'}</td>
             <td>
                 <span class="status-badge ${getPickupStatusClass(profile.pickupStatus)}">
                     ${getPickupStatusText(profile.pickupStatus)}
@@ -7518,7 +7657,6 @@ function renderPassengerDashboardSection() {
         tbody.appendChild(row);
     });
 }
-
 
 
 function updatePassengerDashboardStats() {
@@ -7608,21 +7746,14 @@ function renderDriverDashboardSection() {
     
     tbody.innerHTML = '';
     
-    // Get ALL profiles (like admin dashboard)
+    // Showing all profiles in the master dashboard view
     const allProfiles = invoices;
     
     if (allProfiles.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="6" style="text-align: center; padding: 20px;">
-                No passenger profiles found
-            </td>
-        `;
-        tbody.appendChild(row);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">No passenger profiles found</td></tr>`;
         return;
     }
     
-    // Sort by date (newest first)
     const sortedProfiles = sortInvoicesByDate(allProfiles);
     
     sortedProfiles.forEach(profile => {
@@ -7631,10 +7762,11 @@ function renderDriverDashboardSection() {
         
         const row = document.createElement('tr');
         row.innerHTML = `
+            <td style="color: var(--accent);">${profile.date}</td>
             <td>${profile.id}</td>
             <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
-            <td>AED    ${profile.totalBudget.toFixed(2)}</td>
-            <td>${driver ? driver.username : 'Not Assigned'}</td>
+            <td>AED ${profile.totalBudget.toFixed(2)}</td>
+            <td>${driver ? (driver.fullname || driver.username) : 'Not Assigned'}</td>
             <td>
                 <span class="status-badge ${getPickupStatusClass(profile.pickupStatus)}">
                     ${getPickupStatusText(profile.pickupStatus)}
