@@ -1801,6 +1801,7 @@ th, td {
         <button class="nav-btn" onclick="showFinanceSubSection('profit')">Profit Details</button>
         <button class="nav-btn" onclick="showFinanceSubSection('expenses')">Expense Details</button>
         <button class="nav-btn" onclick="showFinanceSubSection('salaries')">Salary Management</button>
+        <button class="nav-btn" onclick="showFinanceSubSection('register')">Salary Register</button>
     </div>
 
     <!-- Financial Overview Subsection -->
@@ -1817,7 +1818,7 @@ th, td {
                 <div class="stat-value" id="total-expenses-overview">AED    0</div>
                 <div class="stat-label">Total Expenses</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card">z
                 <div class="stat-value" id="net-profit">AED    0</div>
                 <div class="stat-label">Net Profit</div>
             </div>
@@ -1964,9 +1965,10 @@ th, td {
                 <thead>
                     <tr>
                         <th>Employee Name</th>
-                        <th>Commission</th>
                         <th>Basic Salary</th>
-                        <th>Status (Pending)</th>
+                        <th>Commission</th>
+                        <th>Bonus</th>
+                        <th>Total (Status)</th>
                         <th>Partial Payment</th>
                         <th>Actions</th>
                     </tr>
@@ -1975,7 +1977,64 @@ th, td {
             </table>
         </div>
     </div>
+    <div id="finance-register" class="finance-subsection">
+        <h3>Salary Register</h3>
+        <div class="table-container">
+            <table id="salary-register-table">
+                <thead>
+                    <tr>
+                        <th>Employee Name</th>
+                        <th>Basic Salary</th>
+                        <th>Commission</th>
+                        <th>Bonus Amount</th>
+                        <th>Bonus %</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
     
+    <div id="register-input-modal" class="invoice-modal">
+        <div class="invoice-modal-content" style="max-width: 500px;">
+            <button class="close-modal" onclick="closeRegisterModal()">×</button>
+            <div class="invoice-header">
+                <h2>Edit Salary Register</h2>
+                <p id="register-employee-name"></p>
+            </div>
+            <div class="invoice-form">
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="number" id="reg-new-basic" step="0.01" placeholder="Keep empty to leave unchanged">
+                        <span>New Basic Salary</span>
+                        <i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="number" id="reg-new-comm" step="0.01" placeholder="Keep empty to leave unchanged">
+                        <span>New Commission</span>
+                        <i></i>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="number" id="reg-new-bonus-amt" step="0.01" placeholder="Keep empty to leave unchanged">
+                        <span>New Bonus Amount</span>
+                        <i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="number" id="reg-new-bonus-pct" step="0.1" placeholder="Keep empty to leave unchanged">
+                        <span>New Bonus %</span>
+                        <i></i>
+                    </div>
+                </div>
+                <p style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 15px;">* Only fields with values will be updated.</p>
+                <button class="bubbles btn-success" onclick="saveFullRegisterValues()">
+                    <span class="text">Update Register</span>
+                </button>
+            </div>
+        </div>
+    </div>    
     <!-- Partial Payment Modal -->
     <div id="partial-payment-modal" class="invoice-modal">
         <div class="invoice-modal-content" style="max-width: 500px;">
@@ -3386,7 +3445,65 @@ window.viewAttendanceDetails = function(userId) {
     updateAttendanceModal();
     document.getElementById('attendance-modal').style.display = 'block';
 }
+let currentRegisterEmployeeId = null;
+let currentRegisterField = null;
 
+// Add this to your switch case inside showFinanceSubSection(subsection)
+// case 'register': renderSalaryRegister(); break;
+
+function renderSalaryRegister() {
+    const tbody = document.querySelector('#salary-register-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const employees = users.filter(u => u.role !== 'admin');
+
+    employees.forEach(emp => {
+        const reg = emp.salaryRegister || { basic: 0, commission: 0, bonusAmt: 0, bonusPct: 0 };
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${emp.fullname || emp.username}</td>
+            <td>Rs ${parseFloat(reg.basic).toFixed(2)}</td>
+            <td>Rs ${parseFloat(reg.commission).toFixed(2)}</td>
+            <td>Rs ${parseFloat(reg.bonusAmt).toFixed(2)}</td>
+            <td>${reg.bonusPct}%</td>
+            <td>
+                <button class="bubbles btn-small btn-edit" onclick="openFullRegisterModal('${emp.id}')">
+                    <span class="text">Edit Details</span>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function openRegisterModal(empId, field, label) {
+    currentRegisterEmployeeId = empId;
+    currentRegisterField = field;
+    const emp = users.find(u => u.id === empId);
+    document.getElementById('register-employee-name').textContent = emp.fullname || emp.username;
+    document.getElementById('register-input-label').textContent = label;
+    document.getElementById('register-value-input').value = (emp.salaryRegister && emp.salaryRegister[field]) ? emp.salaryRegister[field] : '';
+    document.getElementById('register-input-modal').style.display = 'block';
+}
+
+function closeRegisterModal() {
+    document.getElementById('register-input-modal').style.display = 'none';
+}
+
+async function saveRegisterValue() {
+    const val = parseFloat(document.getElementById('register-value-input').value) || 0;
+    const emp = users.find(u => u.id === currentRegisterEmployeeId);
+    
+    let currentReg = emp.salaryRegister || { basic: 0, commission: 0, bonusAmt: 0, bonusPct: 0 };
+    currentReg[currentRegisterField] = val;
+
+    if (window.updateDoc && window.db) {
+        await window.updateDoc(window.doc(window.db, "users", emp.id), { salaryRegister: currentReg });
+        showNotification('Register Updated', 'success');
+        closeRegisterModal();
+        renderSalaryRegister();
+    }
+}
 window.updateAttendanceModal = function() {
     if(!window.currentAttendanceUserId) return;
     
@@ -3550,20 +3667,12 @@ let currentSelectedEmployeeId = null;
 function renderSalarySection() {
     const tbody = document.querySelector('#salary-table tbody');
     if (!tbody) return;
-    
     tbody.innerHTML = '';
     
-    // Get all non-admin employees
     const allEmployees = users.filter(u => u.role !== 'admin');
     
     if (allEmployees.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="6" style="text-align: center; padding: 20px;">
-                No employees found
-            </td>
-        `;
-        tbody.appendChild(row);
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">No employees found</td></tr>`;
         return;
     }
     
@@ -3572,12 +3681,14 @@ function renderSalarySection() {
         
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${employee.username} (${employee.role})</td>
-            <td>AED    ${salaryData.commission.toFixed(2)}</td>
-            <td>AED    ${salaryData.basicSalary.toFixed(2)}</td>
+            <td>${employee.fullname || employee.username}</td>
+            <td>Rs ${salaryData.basicSalary.toFixed(2)}</td>
+            <td>Rs ${salaryData.commission.toFixed(2)}</td>
+            <td style="color: var(--text-secondary);">Rs ${salaryData.bonus.toFixed(2)}</td>
             <td>
-                <span class="status-badge ${salaryData.pendingAmount > 0 ? 'status-unpaid' : 'status-paid'}">
-                    AED    ${salaryData.pendingAmount.toFixed(2)}
+                <span class="status-badge ${salaryData.pendingAmount > 0 ? 'status-unpaid' : 'status-paid'}" 
+                      style="font-weight: bold; min-width: 110px;">
+                    Rs ${salaryData.totalSalary.toFixed(2)}
                 </span>
             </td>
             <td>
@@ -3597,28 +3708,33 @@ function renderSalarySection() {
 
 function calculateEmployeeSalary(employeeId) {
     const employee = users.find(u => u.id === employeeId);
-    if (!employee) return { commission: 0, basicSalary: 0, totalSalary: 0, pendingAmount: 0 };
+    if (!employee) return { totalSalary: 0, pendingAmount: 0 };
+
+    // Set defaults to 0 if the data doesn't exist yet
+    const reg = employee.salaryRegister || { basic: 0, commission: 0, bonusAmt: 0, bonusPct: 0 };
     
-    // Calculate commission (total earnings for the month)
-    const commission = calculateEmployeeCommission(employeeId);
+    const basic = parseFloat(reg.basic) || 0;
+    const commission = parseFloat(reg.commission) || 0;
+    const bonusBase = parseFloat(reg.bonusAmt) || 0;
+    const bonusPercentage = parseFloat(reg.bonusPct) || 0;
+
+    // MATH: Only add the percentage result, NOT the base amount
+    // Example: (1000 * 1) / 100 = 10
+    const calculatedBonus = (bonusBase * (bonusPercentage / 100));
     
-    // Calculate basic salary based on achievement
-    const achievementRate = calculateAchievementRate(employeeId);
-    const basicSalary = achievementRate >= 60 ? (16000 * (achievementRate / 100)) : 0;
-    
-    const totalSalary = commission + basicSalary;
-    
-    // Calculate pending amount (total salary minus any partial payments)
-    const paidAmount = employee.partialPayments ? employee.partialPayments.reduce((sum, payment) => sum + payment.amount, 0) : 0;
+    // Total = Basic (0) + Commission (0) + 10 = 10
+    const totalSalary = basic + commission + calculatedBonus;
+
+    const paidAmount = employee.partialPayments ? employee.partialPayments.reduce((sum, p) => sum + p.amount, 0) : 0;
     const pendingAmount = totalSalary - paidAmount;
-    
+
     return {
-        commission,
-        basicSalary,
-        totalSalary,
-        pendingAmount,
-        paidAmount,
-        achievementRate
+        basicSalary: basic,
+        commission: commission,
+        bonus: calculatedBonus, 
+        totalSalary: totalSalary,
+        pendingAmount: pendingAmount,
+        paidAmount: paidAmount
     };
 }
 
@@ -3689,7 +3805,7 @@ function searchEmployeesForSalary() {
             <td>AED    ${salaryData.basicSalary.toFixed(2)}</td>
             <td>
                 <span class="status-badge ${salaryData.pendingAmount > 0 ? 'status-unpaid' : 'status-paid'}">
-                    AED    ${salaryData.pendingAmount.toFixed(2)}
+                    Rs  ${salaryData.totalSalary.toFixed(2)}
                 </span>
             </td>
             <td>
@@ -3873,37 +3989,12 @@ function showFinanceSubSection(subsection) {
         case 'salaries':
            renderSalarySection(); // Add this line
            break;
+        case 'register':
+            renderSalaryRegister();
+            break;           
     }
 }
 
-function showFinanceSubSection(subsection) {
-    // Remove active class from all finance nav buttons
-    document.querySelectorAll('#admin-finance .nav-btn').forEach(btn => btn.classList.remove('active'));
-    // Add active class to clicked button
-    event.target.classList.add('active');
-    
-    // Hide all finance subsections
-    document.querySelectorAll('#admin-finance .finance-subsection').forEach(sub => sub.classList.remove('active'));
-    
-    // Show selected subsection
-    document.getElementById(`finance-${subsection}`).classList.add('active');
-    
-    // Render subsection content
-    switch(subsection) {
-        case 'overview':
-            renderFinanceOverview();
-            break;
-        case 'profit':
-            renderProfitSection();
-            break;
-        case 'expenses':
-            renderExpensesSection();
-            break;
-        case 'salaries':
-           renderSalarySection(); // Add this line
-            break;
-    }
-}
 
 // Financial Overview Calculation
 function renderFinanceOverview() {
@@ -8085,7 +8176,53 @@ function assignDriverToProfile(profileId, driverId) {
         d.classList.remove('show');
     });
 }
+window.openFullRegisterModal = function(empId) {
+    currentRegisterEmployeeId = empId;
+    const emp = users.find(u => u.id === empId);
+    if(!emp) return;
 
+    document.getElementById('register-employee-name').textContent = emp.fullname || emp.username;
+    
+    // Clear all inputs
+    document.getElementById('reg-new-basic').value = '';
+    document.getElementById('reg-new-comm').value = '';
+    document.getElementById('reg-new-bonus-amt').value = '';
+    document.getElementById('reg-new-bonus-pct').value = '';
+    
+    document.getElementById('register-input-modal').style.display = 'block';
+};
+
+window.saveFullRegisterValues = async function() {
+    const emp = users.find(u => u.id === currentRegisterEmployeeId);
+    if (!emp) return;
+
+    // Get existing values or defaults
+    let currentReg = emp.salaryRegister || { basic: 0, commission: 0, bonusAmt: 0, bonusPct: 0 };
+
+    // Capture inputs
+    const newBasic = document.getElementById('reg-new-basic').value;
+    const newComm = document.getElementById('reg-new-comm').value;
+    const newBonusAmt = document.getElementById('reg-new-bonus-amt').value;
+    const newBonusPct = document.getElementById('reg-new-bonus-pct').value;
+
+    // "If entered change it, if not entered do not change it" logic
+    if (newBasic !== "")    currentReg.basic = parseFloat(newBasic);
+    if (newComm !== "")     currentReg.commission = parseFloat(newComm);
+    if (newBonusAmt !== "") currentReg.bonusAmt = parseFloat(newBonusAmt);
+    if (newBonusPct !== "") currentReg.bonusPct = parseFloat(newBonusPct);
+
+    // Save to Firebase
+    if (window.updateDoc && window.db) {
+        showLoader();
+        await window.updateDoc(window.doc(window.db, "users", emp.id), { 
+            salaryRegister: currentReg 
+        });
+        hideLoader();
+        showNotification('Salary Register updated successfully', 'success');
+        closeRegisterModal();
+        renderSalaryRegister(); // Refresh table
+    }
+};
 // Unassign driver from profile (for dashboard)
 function unassignDriverFromProfile(profileId) {
     const profile = invoices.find(inv => inv.id === profileId);
@@ -8476,8 +8613,11 @@ window.dismissCenterNotifications = function() {
     window.closeAddDriverModal = closeAddDriverModal;
     window.addNewDriver = addNewDriver;
     window.deleteDriver = deleteDriver;
-
+    window.openRegisterModal = openRegisterModal;
+    window.closeRegisterModal = closeRegisterModal;
+    window.saveRegisterValue = saveRegisterValue;   
     console.log("All functions exposed to window.");
+ 
     </script>
     <!-- Edit Budget Modal -->
     <div id="edit-budget-modal" class="invoice-modal">
