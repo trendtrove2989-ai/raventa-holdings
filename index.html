@@ -707,7 +707,14 @@
     overflow: hidden; /* Hide overflow */
     text-overflow: ellipsis; /* Show ellipsis for long text */
 }
+#sh-detail-modal .table-container {
+    overflow-y: auto;
+    overflow-x: visible !important; /* Crucial for dropdowns */
+}
 
+#sh-ledger-table td {
+    overflow: visible !important;
+}
 #admin-dashboard-table .table-choice-box {
     width: 100%;
     padding: 8px 12px;
@@ -2030,14 +2037,8 @@ th, td {
             <table id="receivable-payable-table">
                 <thead>
                     <tr>
-                        <th>Date</th>
-                        <th>Account Holder</th>
-                        <th>Amount</th>
-                        <th>Description</th>
-                        <th>Type</th>
-                        <th>Status</th>
-                        <th>Holder Category</th>
-                        <th>Actions</th>
+                        <th style="width: 70%;">Stakeholder Name</th>
+                        <th style="text-align: right;">Action</th>
                     </tr>
                 </thead>
                 <tbody></tbody>
@@ -3147,11 +3148,19 @@ th, td {
       });
       
       // Listener for Stakeholders (Receivables/Payables)
+      // Replace the old stakeholder listener inside the <script type="module">
       onSnapshot(collection(db, "stakeholders"), (snapshot) => {
           window.stakeholders = [];
           snapshot.forEach((doc) => window.stakeholders.push(doc.data()));
-          if (document.getElementById('sub-pay-rec')) renderPayableReceivableSection();
-      });    
+          
+          // Safety: Hide loader once data is synced
+          hideLoader(); 
+          
+          // Refresh the table if we are on the finance page
+          if (document.getElementById('sub-pay-rec')) {
+              renderPayableReceivableSection();
+          }
+      }); 
       // A. Load Users & Targets
 // A. Load Users & Targets
       onSnapshot(collection(db, "users"), (snapshot) => {
@@ -4564,37 +4573,73 @@ function closeAddExpenseModal() {
     document.getElementById('expense-description').value = '';
 }
 
-function addNewExpense() {
+window.addNewExpense = async function() {
+    const amount = parseFloat(document.getElementById('exp-amount').value);
+    const detail = document.getElementById('exp-note').value.trim();
+    
+    if (isNaN(amount) || !detail) {
+        showNotification("Please enter amount and detail", "error");
+        return;
+    }
+
     showLoader();
-    setTimeout(() => {
-        const type = document.getElementById('expense-type').value.trim();
-        const amount = parseFloat(document.getElementById('expense-amount').value);
-        const description = document.getElementById('expense-description').value.trim();
-        
-        if (!type || !amount || !description) {
-            showNotification('Please fill all fields', 'error'); hideLoader(); return;
+    const expId = "EXP-" + Date.now();
+    const today = new Date().toISOString().split('T')[0];
+
+    const newExp = {
+        id: expId,
+        date: today,
+        amount: amount,
+        detail: detail,
+        accountHolder: selectedSHForExpense ? "Linked Account" : "General",
+        status: "paid" // Defaulting to paid as it's an expense
+    };
+
+    try {
+        // 1. Save to Company Expenses Collection
+        await window.setDoc(window.doc(window.db, "company_expenses", expId), newExp);
+
+        // 2. CONNECTION LOGIC: If a Stakeholder was chosen, add to their Ledger
+        if (selectedSHForExpense) {
+            let sh = window.stakeholders.find(s => s.id === selectedSHForExpense);
+            
+            // If it's an employee not yet in stakeholder table, create placeholder
+            if (!sh) {
+                const emp = window.users.find(u => u.id === selectedSHForExpense);
+                sh = { id: selectedSHForExpense, name: emp.fullname || emp.username, entries: [] };
+            }
+
+            const ledgerEntry = {
+                date: today,
+                amount: amount,
+                description: `Expense: ${detail}`,
+                type: "receivable", // Automatically Receivable as requested
+                status: "unpaid"    // Default status
+            };
+
+            const currentEntries = sh.entries || [];
+            currentEntries.push(ledgerEntry);
+
+            // Update the Stakeholder Ledger in DB
+            await window.setDoc(window.doc(window.db, "stakeholders", selectedSHForExpense), { 
+                entries: currentEntries,
+                id: selectedSHForExpense,
+                name: sh.name
+            }, { merge: true });
+            
+            showNotification("Expense saved and added to Ledger", "success");
+        } else {
+            showNotification("General Expense Added", "success");
         }
 
-        const newExpense = {
-            id: generateId('exp'),
-            type: type,
-            amount: amount,
-            description: description,
-            date: getCurrentDateTime().date,
-            time: getCurrentDateTime().time,
-            addedBy: currentUser.id
-        };
-
-        // SAVE TO DATABASE
-        if (window.setDoc && window.db) {
-            window.setDoc(window.doc(window.db, "expenses", newExpense.id), newExpense);
-        }
-        
         closeAddExpenseModal();
-        showNotification('Expense saved successfully', 'success');
         hideLoader();
-    }, 1000);
-}
+    } catch (e) {
+        console.error(e);
+        showNotification("Error connecting systems", "error");
+        hideLoader();
+    }
+};
 
 function renderExpensesSection() {
     const selectedMonth = currentExpenseMonth;
@@ -7399,7 +7444,44 @@ function removeCommissions(invoiceId, commissionType) {
 
 // Update the calculateEmployeeCommission function to include the new commission system
  
+let selectedSHForExpense = null;
 
+// Function to fill the dropdown inside the Expense Modal
+window.populateStakeholderDropdownForExpense = function() {
+    const container = document.getElementById('exp-sh-options');
+    if (!container) return;
+    container.innerHTML = '<div class="choice-option" data-value="none">None (General Expense)</div>';
+
+    // Get all manual stakeholders + employees
+    const shList = [...(window.stakeholders || [])];
+    window.users.filter(u => u.role !== 'admin').forEach(emp => {
+        if (!shList.find(s => s.name === (emp.fullname || emp.username))) {
+            shList.push({ id: emp.id, name: emp.fullname || emp.username });
+        }
+    });
+
+    shList.forEach(sh => {
+        const div = document.createElement('div');
+        div.className = 'choice-option';
+        div.textContent = sh.name;
+        div.onclick = (e) => {
+            e.stopPropagation();
+            selectedSHForExpense = sh.id;
+            document.getElementById('exp-sh-choice').querySelector('span:first-child').textContent = sh.name;
+            document.getElementById('exp-sh-container').classList.remove('active');
+        };
+        container.appendChild(div);
+    });
+};
+
+// Modify your existing showAddExpenseModal to trigger the population
+const originalShowExpenseModal = window.showAddExpenseModal;
+window.showAddExpenseModal = function() {
+    selectedSHForExpense = null; // Reset
+    document.getElementById('exp-sh-choice').querySelector('span:first-child').textContent = "Link to Stakeholder (Optional)";
+    populateStakeholderDropdownForExpense();
+    document.getElementById('add-expense-modal').style.display = 'block';
+};
 function updateServiceChargesStatus(invoiceId, newStatus) {
     const invoice = invoices.find(inv => inv.id === invoiceId);
     
@@ -8792,54 +8874,277 @@ function renderExpensesSection() {
 }
 
 // 5. Render Receivables & Payables Table
-function renderPayableReceivableSection() {
+// Global variable to track which SH is being edited in modal
+let activeSHId = null;
+
+// 1. Updated Main Table (Only Name and Button)
+window.renderPayableReceivableSection = function() {
     const tbody = document.querySelector('#receivable-payable-table tbody');
     if (!tbody) return;
     tbody.innerHTML = '';
 
-    const data = window.stakeholders || [];
-    data.sort((a,b) => new Date(b.date) - new Date(a.date));
+    // 1. Get Manual Stakeholders from DB
+    let displayList = [...(window.stakeholders || [])];
 
-    data.forEach(sh => {
+    // 2. Automatically add Employees who aren't already in the list
+    const employees = window.users.filter(u => u.role !== 'admin');
+    
+    employees.forEach(emp => {
+        const exists = displayList.find(sh => sh.name === (emp.fullname || emp.username));
+        if (!exists) {
+            displayList.push({
+                id: emp.id, // Use User ID as the identifier
+                name: emp.fullname || emp.username,
+                category: 'employee',
+                amount: 0,
+                description: 'Auto-added Employee',
+                type: 'payable',
+                status: 'unpaid',
+                isAutoEmployee: true // Flag to distinguish from manual entries
+            });
+        }
+    });
+
+    // Sort alphabetically
+    displayList.sort((a, b) => a.name.localeCompare(b.name));
+
+    displayList.forEach(sh => {
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${sh.date}</td>
-            <td>${sh.name}</td>
-            <td>AED ${parseFloat(sh.amount).toFixed(2)}</td>
-            <td>${sh.description}</td>
+            <td style="font-weight: bold; color: var(--text-main); font-size: 1.1em; padding: 15px;">
+                ${sh.name} ${sh.category === 'employee' ? '<small style="color:var(--accent); margin-left:10px;">[Staff]</small>' : ''}
+            </td>
+            <td style="text-align: right; padding: 15px;">
+                <button class="bubbles btn-small" onclick="openSHDetailModal('${sh.id}')">
+                    <span class="text">View Details</span>
+                </button>
+                ${!sh.isAutoEmployee ? `
+                <button class="bubbles btn-small btn-danger" style="margin-left:10px;" onclick="deleteStakeholder('${sh.id}')">
+                    <span class="text">Delete</span>
+                </button>` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+};
+// 1. Open Modal and Render the Ledger Table
+
+
+
+// 2. Render Rows inside the Modal
+function renderLedgerRows(sh) {
+    const tbody = document.getElementById('sh-ledger-body');
+    tbody.innerHTML = '';
+    
+    const entries = sh.entries || [];
+
+    entries.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="date" value="${entry.date}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'date', this.value)" style="width:100%; background:transparent; color:white; border:none;"></td>
+            <td><input type="number" value="${entry.amount}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'amount', parseFloat(this.value))" style="width:100%; background:transparent; color:white; border:none;"></td>
+            <td><input type="text" value="${entry.description}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'description', this.value)" style="width:100%; background:transparent; color:white; border:none;"></td>
             <td>
-                <div class="table-choice-container">
-                    <div class="table-choice-box selected">
-                        <span>${sh.type.toUpperCase()}</span><span>▼</span>
-                    </div>
-                    <div class="table-choice-options">
-                        <div class="table-choice-option" onclick="updateSHField('${sh.id}', 'type', 'payable')">PAYABLE</div>
-                        <div class="table-choice-option" onclick="updateSHField('${sh.id}', 'type', 'receivable')">RECEIVABLE</div>
-                    </div>
-                </div>
+                <select onchange="updateLedgerEntry('${sh.id}', ${index}, 'type', this.value)" style="background:#1a1d25; color:white; border:1px solid #333; border-radius:4px; padding:5px;">
+                    <option value="payable" ${entry.type === 'payable' ? 'selected' : ''}>Payable</option>
+                    <option value="receivable" ${entry.type === 'receivable' ? 'selected' : ''}>Receivable</option>
+                </select>
             </td>
             <td>
-                <div class="table-choice-container">
-                    <div class="table-choice-box ${sh.status === 'paid' ? 'status-paid' : 'status-unpaid'} selected">
-                        <span>${sh.status.toUpperCase()}</span><span>▼</span>
-                    </div>
-                    <div class="table-choice-options">
-                        <div class="table-choice-option" onclick="updateSHField('${sh.id}', 'status', 'paid')">PAID</div>
-                        <div class="table-choice-option" onclick="updateSHField('${sh.id}', 'status', 'unpaid')">UNPAID</div>
-                    </div>
-                </div>
+                <select onchange="updateLedgerEntry('${sh.id}', ${index}, 'status', this.value)" style="background:#1a1d25; color:white; border:1px solid #333; border-radius:4px; padding:5px;">
+                    <option value="unpaid" ${entry.status === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+                    <option value="paid" ${entry.status === 'paid' ? 'selected' : ''}>Paid</option>
+                </select>
             </td>
-            <td style="color: var(--accent); font-weight: bold;">${sh.category.toUpperCase()}</td>
             <td>
-                <button class="bubbles btn-small btn-danger" onclick="deleteDoc(doc(db, 'stakeholders', '${sh.id}'))">
+                <button class="bubbles btn-small btn-danger" onclick="deleteLedgerEntry('${sh.id}', ${index})">
                     <span class="text">Delete</span>
                 </button>
             </td>
         `;
         tbody.appendChild(row);
     });
-    initializeAdminTableChoiceBoxes();
 }
+
+// 3. Add a blank row
+window.addNewLedgerRow = async function() {
+    // Look for existing stakeholder or current employee
+    let sh = window.stakeholders.find(item => item.id === activeSHId);
+    let name = "";
+    let category = "others";
+
+    if (!sh) {
+        const emp = window.users.find(u => u.id === activeSHId);
+        if (emp) {
+            name = emp.fullname || emp.username;
+            category = "employee";
+            sh = { id: emp.id, entries: [] };
+        } else {
+            return;
+        }
+    } else {
+        name = sh.name;
+        category = sh.category;
+    }
+
+    const newEntry = {
+        date: new Date().toISOString().split('T')[0],
+        amount: 0,
+        description: "New Entry",
+        type: "payable",
+        status: "unpaid"
+    };
+
+    const currentEntries = sh.entries || [];
+    currentEntries.push(newEntry);
+
+    if (window.setDoc && window.db) {
+        showLoader();
+        // Use setDoc with merge to either create or update
+        await window.setDoc(window.doc(window.db, "stakeholders", activeSHId), { 
+            id: activeSHId,
+            name: name,
+            category: category,
+            entries: currentEntries 
+        }, { merge: true });
+        
+        // Update local object to reflect in UI immediately
+        sh.entries = currentEntries;
+        renderLedgerRows(sh);
+        hideLoader();
+        showNotification("New entry added to ledger", "success");
+    }
+};
+
+// 4. Update specific field in a specific row
+window.updateLedgerEntry = async function(shId, index, field, value) {
+    let sh = window.stakeholders.find(item => item.id === shId);
+    if(!sh || !sh.entries) return;
+
+    sh.entries[index][field] = value;
+
+    if (window.updateDoc && window.db) {
+        await window.updateDoc(window.doc(window.db, "stakeholders", shId), { entries: sh.entries });
+    }
+};
+
+// 5. Delete specific row
+window.deleteLedgerEntry = async function(shId, index) {
+    if(!confirm("Delete this entry?")) return;
+    let sh = window.stakeholders.find(item => item.id === shId);
+    if(!sh || !sh.entries) return;
+
+    sh.entries.splice(index, 1);
+
+    if (window.updateDoc && window.db) {
+        await window.updateDoc(window.doc(window.db, "stakeholders", shId), { entries: sh.entries });
+        renderLedgerRows(sh);
+    }
+};
+
+window.closeSHDetailModal = function() {
+    document.getElementById('sh-detail-modal').style.display = 'none';
+    activeSHId = null;
+};
+// 2. Open Modal and Inject Current Details
+// 1. Open the Stakeholder Detail Modal
+window.openSHDetailModal = function(id) {
+    // Look for existing stakeholder or current employee
+    let sh = window.stakeholders.find(item => item.id === id);
+    
+    // If not in stakeholders list, check if it's an employee (auto-add logic)
+    if (!sh) {
+        const emp = window.users.find(u => u.id === id);
+        if (emp) {
+            sh = {
+                id: emp.id,
+                name: emp.fullname || emp.username,
+                category: 'employee',
+                entries: [] // Initialize empty ledger entries
+            };
+        }
+    }
+
+    if (!sh) {
+        showNotification("Stakeholder not found", "error");
+        return;
+    }
+
+    // Set the active ID for the "Add New Entry" logic
+    activeSHId = id;
+
+    // Update Modal Headers
+    document.getElementById('sh-detail-name').textContent = sh.name + " - Ledger";
+    document.getElementById('sh-detail-category').textContent = (sh.category || 'Others').toUpperCase();
+    
+    // Show the modal
+    document.getElementById('sh-detail-modal').style.display = 'block';
+
+    // Render the ledger rows (the table inside the modal)
+    renderLedgerRows(sh);
+};
+
+// 2. Ensure renderLedgerRows is globally available
+window.renderLedgerRows = function(sh) {
+    const tbody = document.getElementById('sh-ledger-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    const entries = sh.entries || [];
+
+    if (entries.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">No ledger entries found. Click "Add New Entry" to start.</td></tr>`;
+        return;
+    }
+
+    entries.forEach((entry, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="date" value="${entry.date}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'date', this.value)" style="width:100%; background:transparent; color:white; border:none; outline:none;"></td>
+            <td><input type="number" value="${entry.amount}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'amount', parseFloat(this.value))" style="width:100%; background:transparent; color:white; border:none; outline:none;"></td>
+            <td><input type="text" value="${entry.description}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'description', this.value)" style="width:100%; background:transparent; color:white; border:none; outline:none;"></td>
+            <td>
+                <select onchange="updateLedgerEntry('${sh.id}', ${index}, 'type', this.value)" style="background:#1a1d25; color:white; border:1px solid #333; border-radius:4px; padding:5px; width:100%;">
+                    <option value="payable" ${entry.type === 'payable' ? 'selected' : ''}>Payable</option>
+                    <option value="receivable" ${entry.type === 'receivable' ? 'selected' : ''}>Receivable</option>
+                </select>
+            </td>
+            <td>
+                <select onchange="updateLedgerEntry('${sh.id}', ${index}, 'status', this.value)" style="background:#1a1d25; color:white; border:1px solid #333; border-radius:4px; padding:5px; width:100%;">
+                    <option value="unpaid" ${entry.status === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+                    <option value="paid" ${entry.status === 'paid' ? 'selected' : ''}>Paid</option>
+                </select>
+            </td>
+            <td>
+                <button class="bubbles btn-small btn-danger" onclick="deleteLedgerEntry('${sh.id}', ${index})">
+                    <span class="text">Delete</span>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+};
+
+// 3. Helper to update and refresh modal
+window.updateSHFieldInModal = async function(id, field, value) {
+    await updateSHField(id, field, value); // Calls your existing DB update function
+    openSHDetailModal(id); // Re-renders the internal modal content
+};
+
+window.closeSHDetailModal = function() {
+    document.getElementById('sh-detail-modal').style.display = 'none';
+    activeSHId = null;
+};
+
+// 4. Delete function (Fix for stakeholder table)
+window.deleteStakeholder = async function(id) {
+    if(confirm("Are you sure you want to delete this stakeholder?")) {
+        if (window.deleteDoc && window.db) {
+            await window.deleteDoc(window.doc(window.db, 'stakeholders', id));
+            showNotification("Stakeholder deleted", "success");
+        }
+    }
+};
 
 // Database Helper Functions
 async function updateExpField(id, field, value) {
@@ -9279,6 +9584,7 @@ window.dismissCenterNotifications = function() {
     window.searchDrivers = searchDrivers;
     window.showAddDriverModal = showAddDriverModal;
     window.closeAddDriverModal = closeAddDriverModal;
+    window.closeSHDetailModal = closeSHDetailModal;
     window.addNewDriver = addNewDriver;
     window.deleteDriver = deleteDriver;
     window.openRegisterModal = openRegisterModal;
@@ -9378,7 +9684,17 @@ window.dismissCenterNotifications = function() {
                     <input type="text" id="exp-note" required>
                     <span>Detail / Note</span><i></i>
                 </div>
-                <button class="bubbles btn-success" onclick="saveNewExpense()"><span class="text">Save Expense</span></button>
+                
+                <div class="choice-container" id="exp-sh-container" style="margin-bottom: 20px;">
+                    <div class="choice-box" id="exp-sh-choice">
+                        <span>Link to Stakeholder (Optional)</span>
+                        <span>▼</span>
+                    </div>
+                    <div class="choice-options" id="exp-sh-options" style="max-height: 150px;">
+                        </div>
+                </div>
+    
+                <button class="bubbles btn-success" onclick="addNewExpense()"><span class="text">Save Expense & Link Ledger</span></button>
             </div>
         </div>
     </div>
@@ -9442,7 +9758,46 @@ window.dismissCenterNotifications = function() {
             </div>
         </div>
     </div>   
+    <div id="sh-detail-modal" class="invoice-modal">
+        <div class="invoice-modal-content" style="max-width: 900px;"> 
+            <button class="close-modal" onclick="closeSHDetailModal()">×</button>
+            <div class="invoice-header">
+                <h2 id="sh-detail-name">Stakeholder Ledger</h2>
+                <p id="sh-detail-category" style="color: var(--accent);"></p>
+            </div>
+    
+            <div style="text-alisgn: right; margin-bottom: 15px;">
+                <button class="bubbles btn-small btn-success" onclick="addNewLedgerRow()">
+                    <span class="text">+ Add New Entry</span>
+                </button>
+            </div>
+    
+            <div class="table-container" style="max-height: 400px; overflow-y: auto;">
+                <table id="sh-ledger-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Date</th>
+                            <th style="width: 15%;">Amount</th>
+                            <th style="width: 25%;">Description</th>
+                            <th style="width: 15%;">Type</th>
+                            <th style="width: 15%;">Status</th>
+                            <th style="width: 15%;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sh-ledger-body">
+                        </tbody>
+                </table>
+            </div>
+    
+            <div style="margin-top: 20px; text-align: center;">
+                <button class="bubbles btn-secondary" onclick="closeSHDetailModal()">
+                    <span class="text">Close Ledger</span>
+                </button>
+            </div>
+        </div>
+    </div>
 </body>
+
 </html>
 
 
