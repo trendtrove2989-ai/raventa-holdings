@@ -582,7 +582,55 @@
     display: flex;
     gap: 8px;
 }
+/* Ledger Table Specific Styling */
+#sh-ledger-table input[readonly] {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: default;
+    outline: none;
+}
 
+#sh-ledger-table select {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 12px;
+    padding: 6px 25px 6px 10px !important;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+/* Status: Paid (Green) / Unpaid (Yellow/Red) */
+#sh-ledger-table select.status-paid {
+    background-color: rgba(0, 255, 140, 0.15);
+    border: 1px solid var(--status-paid);
+    color: var(--status-paid);
+}
+
+#sh-ledger-table select.status-unpaid {
+    background-color: rgba(255, 204, 0, 0.15);
+    border: 1px solid #ffcc00;
+    color: #ffcc00;
+}
+
+/* Type: Payable (Cyan) / Receivable (Purple) */
+#sh-ledger-table select.type-payable {
+    background-color: rgba(0, 234, 255, 0.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+}
+
+#sh-ledger-table select.type-receivable {
+    background-color: rgba(160, 32, 240, 0.1);
+    border: 1px solid #a020f0;
+    color: #a020f0;
+}
 .btn-edit {
     background-color: var(--accent);
     color: var(--bg-main);
@@ -8838,7 +8886,7 @@ function renderExpensesSection() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${exp.date}</td>
-            <td>AED ${parseFloat(exp.amount).toFixed(2)}</td>
+            <td>RS ${parseFloat(exp.amount).toFixed(2)}</td>
             <td>${exp.detail}</td>
             <td>
                 <div class="table-choice-container">
@@ -8968,7 +9016,6 @@ function renderLedgerRows(sh) {
 
 // 3. Add a blank row
 window.addNewLedgerRow = async function() {
-    // Look for existing stakeholder or current employee
     let sh = window.stakeholders.find(item => item.id === activeSHId);
     let name = "";
     let category = "others";
@@ -8979,20 +9026,23 @@ window.addNewLedgerRow = async function() {
             name = emp.fullname || emp.username;
             category = "employee";
             sh = { id: emp.id, entries: [] };
-        } else {
-            return;
-        }
+        } else { return; }
     } else {
         name = sh.name;
         category = sh.category;
     }
 
+    // AUTO-GENERATE DATA: No manual input for these fields
+    const creationDate = new Date().toISOString().split('T')[0];
+    const defaultAmount = 0; // Admin will update this via edit if needed, or it comes from Linked Expense
+    const defaultDesc = "Manual Ledger Entry";
+
     const newEntry = {
-        date: new Date().toISOString().split('T')[0],
-        amount: 0,
-        description: "New Entry",
-        type: "payable",
-        status: "unpaid"
+        date: creationDate, // Date is fixed
+        amount: defaultAmount,
+        description: defaultDesc,
+        type: "payable", // Input via Choice Box
+        status: "unpaid" // Input via Choice Box
     };
 
     const currentEntries = sh.entries || [];
@@ -9000,7 +9050,6 @@ window.addNewLedgerRow = async function() {
 
     if (window.setDoc && window.db) {
         showLoader();
-        // Use setDoc with merge to either create or update
         await window.setDoc(window.doc(window.db, "stakeholders", activeSHId), { 
             id: activeSHId,
             name: name,
@@ -9008,11 +9057,10 @@ window.addNewLedgerRow = async function() {
             entries: currentEntries 
         }, { merge: true });
         
-        // Update local object to reflect in UI immediately
-        sh.entries = currentEntries;
+        // Refresh local data and UI
         renderLedgerRows(sh);
         hideLoader();
-        showNotification("New entry added to ledger", "success");
+        showNotification("New entry generated for " + creationDate, "success");
     }
 };
 
@@ -9093,24 +9141,31 @@ window.renderLedgerRows = function(sh) {
     const entries = sh.entries || [];
 
     if (entries.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">No ledger entries found. Click "Add New Entry" to start.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px; color: var(--text-secondary);">No records. Click "Add New Entry" to link an expense.</td></tr>`;
         return;
     }
 
     entries.forEach((entry, index) => {
         const row = document.createElement('tr');
+        
+        // Define Dynamic Classes for Colors
+        const statusClass = entry.status === 'paid' ? 'status-paid' : 'status-unpaid';
+        const typeClass = entry.type === 'receivable' ? 'type-receivable' : 'type-payable';
+
         row.innerHTML = `
-            <td><input type="date" value="${entry.date}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'date', this.value)" style="width:100%; background:transparent; color:white; border:none; outline:none;"></td>
-            <td><input type="number" value="${entry.amount}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'amount', parseFloat(this.value))" style="width:100%; background:transparent; color:white; border:none; outline:none;"></td>
-            <td><input type="text" value="${entry.description}" onchange="updateLedgerEntry('${sh.id}', ${index}, 'description', this.value)" style="width:100%; background:transparent; color:white; border:none; outline:none;"></td>
+            <td style="color: var(--text-secondary);">${entry.date}</td>
+            <td style="font-weight: bold; color: var(--text-main);">Rs ${parseFloat(entry.amount).toFixed(2)}</td>
+            <td style="font-size: 0.9em;">${entry.description}</td>
             <td>
-                <select onchange="updateLedgerEntry('${sh.id}', ${index}, 'type', this.value)" style="background:#1a1d25; color:white; border:1px solid #333; border-radius:4px; padding:5px; width:100%;">
+                <select onchange="updateLedgerEntry('${sh.id}', ${index}, 'type', this.value); renderLedgerRows(window.stakeholders.find(s=>s.id==='${sh.id}'))" 
+                    class="${typeClass}">
                     <option value="payable" ${entry.type === 'payable' ? 'selected' : ''}>Payable</option>
                     <option value="receivable" ${entry.type === 'receivable' ? 'selected' : ''}>Receivable</option>
                 </select>
             </td>
             <td>
-                <select onchange="updateLedgerEntry('${sh.id}', ${index}, 'status', this.value)" style="background:#1a1d25; color:white; border:1px solid #333; border-radius:4px; padding:5px; width:100%;">
+                <select onchange="updateLedgerEntry('${sh.id}', ${index}, 'status', this.value); renderLedgerRows(window.stakeholders.find(s=>s.id==='${sh.id}'))" 
+                    class="${statusClass}">
                     <option value="unpaid" ${entry.status === 'unpaid' ? 'selected' : ''}>Unpaid</option>
                     <option value="paid" ${entry.status === 'paid' ? 'selected' : ''}>Paid</option>
                 </select>
@@ -9675,10 +9730,10 @@ window.dismissCenterNotifications = function() {
         <div class="invoice-modal-content" style="max-width: 500px;">
             <button class="close-modal" onclick="closeAddExpenseModal()">×</button>
             <div class="invoice-header"><h2>Add Company Expense</h2></div>
-            <div class="invoice-form">
+            <div class="invoice-form">s
                 <div class="inputbox">
                     <input type="number" id="exp-amount" required>
-                    <span>Expense Amount (AED)</span><i></i>
+                    <span>Expense Amount (Rs)</span><i></i>
                 </div>
                 <div class="inputbox">
                     <input type="text" id="exp-note" required>
