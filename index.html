@@ -51,7 +51,12 @@
 .driver-item:hover {
     background-color: rgba(52, 152, 219, 0.05);
 }
-
+/* Styling for the new Working status */
+.status-working {
+    background: rgba(160, 32, 240, 0.15); /* Purple tint */
+    color: #a020f0; 
+    border: 1px solid rgba(160, 32, 240, 0.3);
+}
 .driver-actions {
     display: flex;
     gap: 10px;
@@ -132,7 +137,19 @@
 .finance-subsection.active {
     display: block;
 }
-
+#attendance-sheet-table input {
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: white;
+    text-transform: uppercase;
+    border-radius: 4px;
+}
+#attendance-sheet-table input.p-status { background: rgba(0, 255, 140, 0.2); border-color: #00ff8c; }
+#attendance-sheet-table input.a-status { background: rgba(255, 0, 87, 0.2); border-color: #ff0057; }
+#attendance-sheet-table input.l-status { background: rgba(255, 204, 0, 0.2); border-color: #ffcc00; }
 .financial-breakdown {
     flex: 1;
     background: rgba(26, 29, 37, 0.6);
@@ -1513,6 +1530,9 @@ th, td {
             <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('pickup confirmed', this)">
                 <span class="text">Confirmed</span>
             </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('working', this)">
+                    <span class="text">Working</span>
+            </button>            
             <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('canceled', this)">
                 <span class="text">Canceled</span>
             </button>
@@ -1701,27 +1721,29 @@ th, td {
             </div>
 <div id="admin-attendance" class="section">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-        <h3>Employee Attendance</h3>
+        <h3>Staff Attendance Sheet</h3>
         <div class="inputbox" style="width: 200px; margin-bottom: 0;">
-            <input type="date" id="attendance-date-filter" required="required" onchange="renderAttendanceSection()">
-            <span>Select Date</span>
+            <input type="month" id="attendance-month-filter" required="required" onchange="renderAttendanceSheet()">
+            <span>Select Month</span>
             <i></i>
         </div>
     </div>
 
-    <div class="table-container">
-        <table id="attendance-table">
+    <div class="table-container" style="overflow-x: auto;">
+        <table id="attendance-sheet-table" style="font-size: 0.8rem;">
             <thead>
-                <tr>
-                    <th>Employee Name</th>
-                    <th>Role</th>
-                    <th>Hours Worked</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
+                <tr id="attendance-header-row">
+                    </tr>
             </thead>
-            <tbody></tbody>
+            <tbody id="attendance-sheet-body">
+                </tbody>
         </table>
+    </div>
+    
+    <div style="margin-top: 15px; display: flex; gap: 20px; font-size: 0.9rem;">
+        <span><strong>P:</strong> Present (Green)</span>
+        <span><strong>A:</strong> Absent (Red)</span>
+        <span><strong>L:</strong> Late (Yellow)</span>
     </div>
 </div>
 <div id="admin-split" class="section">
@@ -1871,7 +1893,7 @@ th, td {
                 <div class="stat-label">Total Profit</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="total-expenses-overview">AED    0</div>
+                <div class="stat-value" id="total-expenses-overview">Rs    0</div>
                 <div class="stat-label">Total Expenses</div>
             </div>
             <div class="stat-card">z
@@ -1916,7 +1938,7 @@ th, td {
                     </div>
                     <div class="breakdown-item total">
                         <span>Total Expenses:</span>
-                        <span id="total-expenses-overview-detailed">AED    0</span>
+                        <span id="total-expenses-overview-detailed">Rs    0</span>
                     </div>
                 </div>
             </div>
@@ -1967,33 +1989,28 @@ th, td {
     </div>
 
     <!-- Expense Details Subsection -->
-    <div id="finance-expenses" class="finance-subsection">
+<div id="finance-expenses" class="finance-subsection">
+    <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <button class="nav-btn active" onclick="toggleExpenseSubPart('company-expenses', this)">Company Expenses</button>
+        <button class="nav-btn" onclick="toggleExpenseSubPart('pay-rec', this)">Receivables & Payables</button>
+    </div>
+
+    <div id="sub-company-expenses" class="expense-subpart">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-            <h3>Expense Management</h3>
+            <h3>Company Expense Management</h3>
             <button class="bubbles" onclick="showAddExpenseModal()" style="width: auto; min-width: 150px;">
                 <span class="text">Add Expense</span>
             </button>
         </div>
-        
-        <div class="stats-grid">
-            <div class="stat-card">
-                <div class="stat-value" id="total-expenses-detailed">AED    0</div>
-                <div class="stat-label">Total Expenses</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-value" id="monthly-expenses">AED    0</div>
-                <div class="stat-label">This Month</div>
-            </div>
-        </div>
-        
         <div class="table-container">
             <table id="expenses-table">
                 <thead>
                     <tr>
                         <th>Date</th>
-                        <th>Expense Type</th>
                         <th>Amount</th>
-                        <th>Description</th>
+                        <th>Detail/Note</th>
+                        <th>Account Holder</th>
+                        <th>Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -2001,6 +2018,33 @@ th, td {
             </table>
         </div>
     </div>
+
+    <div id="sub-pay-rec" class="expense-subpart" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3>Receivables & Payables</h3>
+            <button class="bubbles" onclick="showAddStakeholderModal()" style="width: auto; min-width: 180px;">
+                <span class="text">Add Stakeholder/Entry</span>
+            </button>
+        </div>
+        <div class="table-container">
+            <table id="receivable-payable-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Account Holder</th>
+                        <th>Amount</th>
+                        <th>Description</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Holder Category</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
     <!-- Salary Management Subsection -->
     <div id="finance-salaries" class="finance-subsection">
@@ -3094,8 +3138,20 @@ th, td {
       window.deleteDoc = deleteDoc;
       window.collection = collection;
     
-      // 5. LISTENERS (Keep your website updated automatically)
-    
+      // Listener for Company Expenses
+      onSnapshot(collection(db, "company_expenses"), (snapshot) => {
+          window.company_expenses = [];
+          snapshot.forEach((doc) => window.company_expenses.push(doc.data()));
+          // Only refresh if the element exists and is active
+          if (document.getElementById('sub-company-expenses')) renderExpensesSection();
+      });
+      
+      // Listener for Stakeholders (Receivables/Payables)
+      onSnapshot(collection(db, "stakeholders"), (snapshot) => {
+          window.stakeholders = [];
+          snapshot.forEach((doc) => window.stakeholders.push(doc.data()));
+          if (document.getElementById('sub-pay-rec')) renderPayableReceivableSection();
+      });    
       // A. Load Users & Targets
 // A. Load Users & Targets
       onSnapshot(collection(db, "users"), (snapshot) => {
@@ -3416,7 +3472,6 @@ function renderPreviousPendingSection(dashboardContainer, profiles) {
     const toggleBtn = document.createElement('div');
     toggleBtn.id = 'prev-pending-toggle-btn';
     toggleBtn.className = 'previous-pending-toggle';
-    toggleBtn.innerHTML = `<span>⚠️ Outstanding Previous Profiles (${profiles.length})</span><span id="toggle-icon">View ▼</span>`;
     
     const container = document.createElement('div');
     container.id = 'prev-pending-container';
@@ -3642,16 +3697,21 @@ function renderSalaryRegister() {
 
     employees.forEach(emp => {
         const reg = emp.salaryRegister || { basic: 0, commission: 0, bonusAmt: 0, bonusPct: 0 };
+        // Get the dynamic salary data
+        const salaryData = calculateEmployeeSalary(emp.id);
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${emp.fullname || emp.username}</td>
-            <td>Rs ${parseFloat(reg.basic).toFixed(2)}</td>
-            <td>Rs ${parseFloat(reg.commission).toFixed(2)}</td>
-            <td>Rs ${parseFloat(reg.bonusAmt).toFixed(2)}</td>
-            <td>${reg.bonusPct}%</td>
+            <td>AED ${parseFloat(reg.basic).toFixed(2)}</td>
+            <td>AED ${parseFloat(reg.commission).toFixed(2)}</td>
+            <td>AED ${parseFloat(reg.bonusAmt).toFixed(2)}</td>
+            <td style="color: var(--status-assigned); font-weight: bold;">
+                ${salaryData.performanceRate.toFixed(1)}% (Auto)
+            </td>
             <td>
                 <button class="bubbles btn-small btn-edit" onclick="openFullRegisterModal('${emp.id}')">
-                    <span class="text">Edit Details</span>
+                    <span class="text">Edit Base Details</span>
                 </button>
             </td>
         `;
@@ -3893,21 +3953,37 @@ function calculateEmployeeSalary(employeeId) {
     const employee = users.find(u => u.id === employeeId);
     if (!employee) return { totalSalary: 0, pendingAmount: 0 };
 
-    // Set defaults to 0 if the data doesn't exist yet
     const reg = employee.salaryRegister || { basic: 0, commission: 0, bonusAmt: 0, bonusPct: 0 };
     
     const basic = parseFloat(reg.basic) || 0;
     const commission = parseFloat(reg.commission) || 0;
     const bonusBase = parseFloat(reg.bonusAmt) || 0;
-    const bonusPercentage = parseFloat(reg.bonusPct) || 0;
 
-    // MATH: Only add the percentage result, NOT the base amount
-    // Example: (1000 * 1) / 100 = 10
-    const calculatedBonus = (bonusBase * (bonusPercentage / 100));
+    // --- NEW DYNAMIC PERFORMANCE LOGIC ---
+    // Calculate achievement % for the current active targets
+    const currentMonth = new Date().toISOString().substr(0, 7);
+    const userTargets = employee.targets || [];
     
-    // Total = Basic (0) + Commission (0) + 10 = 10
-    const totalSalary = basic + commission + calculatedBonus;
+    // Filter for active targets in the current month
+    const monthlyTargets = userTargets.filter(t => 
+        t.status === 'Active' && 
+        (t.assignedDate && t.assignedDate.startsWith(currentMonth))
+    );
 
+    let performancePercentage = 0;
+    if (monthlyTargets.length > 0) {
+        const totalTargetGoal = monthlyTargets.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+        const totalAchievedSoFar = monthlyTargets.reduce((sum, t) => sum + (parseFloat(t.achievedAmount) || 0), 0);
+        
+        if (totalTargetGoal > 0) {
+            performancePercentage = (totalAchievedSoFar / totalTargetGoal) * 100;
+        }
+    }
+    // Use the performance percentage instead of reg.bonusPct
+    const calculatedBonus = (bonusBase * (performancePercentage / 100));
+    // --------------------------------------
+
+    const totalSalary = basic + commission + calculatedBonus;
     const paidAmount = employee.partialPayments ? employee.partialPayments.reduce((sum, p) => sum + p.amount, 0) : 0;
     const pendingAmount = totalSalary - paidAmount;
 
@@ -3915,12 +3991,12 @@ function calculateEmployeeSalary(employeeId) {
         basicSalary: basic,
         commission: commission,
         bonus: calculatedBonus, 
+        performanceRate: performancePercentage, // added for UI display
         totalSalary: totalSalary,
         pendingAmount: pendingAmount,
         paidAmount: paidAmount
     };
 }
-
 
 
 function calculateAchievementRate(employeeId) {
@@ -4179,11 +4255,13 @@ function showFinanceSubSection(subsection) {
 }
 
 
-// Financial Overview Calculation
+// Add this constant at the top of your finance script area
+const RS_TO_AED_RATE = 0.040; // Example: 1 PKR/INR to AED. Adjust this rate as needed.
+
 function renderFinanceOverview() {
     const selectedMonth = currentFinanceMonth;
     
-    // Calculate total profit (from both driver and passenger sides)
+    // 1. Calculate Revenue (Already in AED)
     const monthTransactions = finance.transactions.filter(t => 
         t.date.startsWith(selectedMonth) && 
         (t.type === 'driver_payment' || t.type === 'service_charges')
@@ -4197,36 +4275,37 @@ function renderFinanceOverview() {
         .filter(t => t.type === 'service_charges')
         .reduce((sum, t) => sum + t.amount, 0);
     
-    const totalProfit = driverSideProfit + passengerSideProfit;
+    const totalRevenueAED = driverSideProfit + passengerSideProfit;
     
-    // Calculate total expenses
+    // 2. Calculate Expenses (Recorded in Rs, Convert to AED)
     const monthExpenses = expenses.filter(exp => exp.date.startsWith(selectedMonth));
-    const totalExpenses = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    const totalExpensesRS = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
     
-    // Calculate net profit
-    const netProfit = totalProfit - totalExpenses;
+    // CONVERSION STEP
+    const totalExpensesConvertedToAED = totalExpensesRS * RS_TO_AED_RATE;
     
-    // Calculate profit margin
-    const profitMargin = totalProfit > 0 ? (netProfit / totalProfit) * 100 : 0;
+    // 3. Calculate Net Profit and Margin (All in AED now)
+    const netProfitAED = totalRevenueAED - totalExpensesConvertedToAED;
+    const profitMargin = totalRevenueAED > 0 ? (netProfitAED / totalRevenueAED) * 100 : 0;
     
-    // Update overview stats
-    document.getElementById('total-profit-overview').textContent = `AED    ${totalProfit.toFixed(2)}`;
-    document.getElementById('total-expenses-overview').textContent = `AED    ${totalExpenses.toFixed(2)}`;
-    document.getElementById('net-profit').textContent = `AED    ${netProfit.toFixed(2)}`;
+    // 4. Update UI Elements
+    document.getElementById('total-profit-overview').textContent = `AED ${totalRevenueAED.toFixed(2)}`;
+    document.getElementById('total-expenses-overview').textContent = `Rs ${totalExpensesRS.toFixed(2)}`;
+    document.getElementById('net-profit').textContent = `AED ${netProfitAED.toFixed(2)}`;
     document.getElementById('profit-margin').textContent = `${profitMargin.toFixed(1)}%`;
     
-    // Update detailed breakdown
-    document.getElementById('driver-revenue').textContent = `AED    ${driverSideProfit.toFixed(2)}`;
-    document.getElementById('passenger-revenue').textContent = `AED    ${passengerSideProfit.toFixed(2)}`;
-    document.getElementById('total-revenue').textContent = `AED    ${totalProfit.toFixed(2)}`;
-    document.getElementById('operational-expenses').textContent = `AED    ${totalExpenses.toFixed(2)}`;
-    document.getElementById('salary-expenses').textContent = `AED    0.00`; // Placeholder for now
-    document.getElementById('total-expenses-overview-detailed').textContent = `AED    ${totalExpenses.toFixed(2)}`;
-    document.getElementById('net-profit-detailed').textContent = `AED    ${netProfit.toFixed(2)}`;
+    // Detailed Breakdown Updates
+    document.getElementById('driver-revenue').textContent = `AED ${driverSideProfit.toFixed(2)}`;
+    document.getElementById('passenger-revenue').textContent = `AED ${passengerSideProfit.toFixed(2)}`;
+    document.getElementById('total-revenue').textContent = `AED ${totalRevenueAED.toFixed(2)}`;
     
-    // Color code net profit
+    // Show both currencies in the breakdown for clarity
+    document.getElementById('operational-expenses').textContent = `Rs ${totalExpensesRS.toFixed(2)} (≈AED ${totalExpensesConvertedToAED.toFixed(2)})`;
+    document.getElementById('total-expenses-overview-detailed').textContent = `Rs ${totalExpensesRS.toFixed(2)}`;
+    
     const netProfitElement = document.getElementById('net-profit-detailed');
-    netProfitElement.style.color = netProfit >= 0 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+    netProfitElement.textContent = `AED ${netProfitAED.toFixed(2)}`;
+    netProfitElement.style.color = netProfitAED >= 0 ? 'var(--status-paid)' : 'var(--status-unpaid)';
 }
 
 // Update the existing showAdminSection function to handle finance
@@ -4285,10 +4364,13 @@ function showAdminSection(section) {
         case 'profit': renderProfitSection(); break;
         case 'expenses': renderExpensesSection(); break;
         case 'attendance': 
-            if (!document.getElementById('attendance-date-filter').value) {
-                document.getElementById('attendance-date-filter').value = new Date().toISOString().split('T')[0];
+            // Set the month filter to the current month if it's empty
+            const attendanceFilter = document.getElementById('attendance-month-filter');
+            if (!attendanceFilter.value) {
+                attendanceFilter.value = getCurrentMonth(); // Uses your existing helper function
             }
-            renderAttendanceSection(); 
+            // Render the sheet immediately
+            renderAttendanceSheet(); 
             break;
         case 'split': renderAdminSplitTable(); break;
     }
@@ -4635,7 +4717,8 @@ function initializeMonthFilters() {
     // Add new month filters
     document.getElementById('profit-month-filter').value = currentMonth;
     document.getElementById('expense-month-filter').value = currentMonth;
-    
+    // Add this line inside initializeMonthFilters()
+    document.getElementById('attendance-month-filter').value = getCurrentMonth();
     document.getElementById('profit-month-filter').addEventListener('change', function() {
         currentProfitMonth = this.value;
         renderProfitSection();
@@ -4828,18 +4911,15 @@ function renderAdminProfilesTable() {
     const tbody = document.querySelector('#admin-profiles-table tbody');
     tbody.innerHTML = '';
     
-    // Filter profiles that are not yet confirmed or canceled
-    const pendingProfiles = invoices.filter(inv => 
-        inv.pickupStatus === 'no status yet' || 
-        inv.pickupStatus === 'booked' || 
-        !inv.pickupStatus
-    );
+    // REPLACED: Removed the status filter so ALL profiles show here
+    const allProfilesForMonth = invoices; 
     
-    const filteredProfiles = filterByMonth(pendingProfiles, currentProfilesMonth);
+    // Still keep the month filter so the list doesn't get thousands of entries over time
+    const filteredProfiles = filterByMonth(allProfilesForMonth, currentProfilesMonth);
     
     if (filteredProfiles.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">No pending passenger profiles found for selected month</td>`;
+        row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">No profiles found for this month</td>`;
         tbody.appendChild(row);
         return;
     }
@@ -4850,10 +4930,8 @@ function renderAdminProfilesTable() {
     sortedProfiles.forEach(profile => {
         if (!profile.pickupStatus) { profile.pickupStatus = 'no status yet'; }
         
-        let pickupStatusText = 'Not Yet';
-        if (profile.pickupStatus === 'pickup confirmed') pickupStatusText = 'Pickup Confirmed';
-        else if (profile.pickupStatus === 'canceled') pickupStatusText = 'Canceled';
-        else if (profile.pickupStatus === 'booked') pickupStatusText = 'Booked'; // Added logic
+        // Get display text
+        const pickupStatusText = getPickupStatusText(profile.pickupStatus);
         
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -4882,6 +4960,7 @@ function renderAdminProfilesTable() {
                     <div class="table-choice-options">
                         <div class="table-choice-option" data-value="no status yet">Not Yet</div>
                         <div class="table-choice-option" data-value="booked">Booked</div> 
+                        <div class="table-choice-option" data-value="working">Working</div>
                         <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
                         <div class="table-choice-option" data-value="canceled">Canceled</div>
                     </div>
@@ -4989,7 +5068,86 @@ function renderAdminInvoicesTable() {
     // Initialize admin table choice boxes after rendering
     initializeAdminTableChoiceBoxes();
 }
+window.renderAttendanceSheet = function() {
+    // Get the value from the month picker
+    let monthVal = document.getElementById('attendance-month-filter').value;
+    
+    // Fallback to current month if empty
+    if (!monthVal) {
+        monthVal = getCurrentMonth();
+        document.getElementById('attendance-month-filter').value = monthVal;
+    }
 
+    const [year, month] = monthVal.split('-');
+    const daysInMonth = new Date(year, month, 0).getDate();
+    
+    const headerRow = document.getElementById('attendance-header-row');
+    const tbody = document.getElementById('attendance-sheet-body');
+    
+    // Create Table Headers (1 to 28/30/31)
+    let headerHTML = `<th style="position: sticky; left: 0; background: var(--bg-panel); z-index: 2; min-width:150px;">Employee Name</th>`;
+    for (let i = 1; i <= daysInMonth; i++) {
+        headerHTML += `<th style="text-align:center; min-width:35px;">${i}</th>`;
+    }
+    headerHTML += `<th style="min-width:60px;">Total P</th>`;
+    headerRow.innerHTML = headerHTML;
+
+    // Render Rows
+    tbody.innerHTML = '';
+    const employees = window.users.filter(u => u.role !== 'admin');
+
+    employees.forEach(user => {
+        const row = document.createElement('tr');
+        let rowHTML = `<td style="position: sticky; left: 0; background: var(--bg-panel); z-index: 1;">${user.fullname || user.username}</td>`;
+        
+        let presentCount = 0;
+        const monthlyRecords = user.manualAttendance?.[monthVal] || {};
+
+        for (let i = 1; i <= daysInMonth; i++) {
+            const status = monthlyRecords[i] || '';
+            let statusClass = '';
+            if(status.toUpperCase() === 'P') { statusClass = 'p-status'; presentCount++; }
+            else if(status.toUpperCase() === 'A') statusClass = 'a-status';
+            else if(status.toUpperCase() === 'L') statusClass = 'l-status';
+
+            rowHTML += `<td>
+                <input type="text" maxlength="1" class="${statusClass}" 
+                    value="${status}" 
+                    placeholder="-"
+                    oninput="this.value = this.value.toUpperCase()"
+                    onchange="saveManualAttendance('${user.id}', '${monthVal}', ${i}, this.value)">
+            </td>`;
+        }
+        
+        rowHTML += `<td style="font-weight:bold; color:var(--accent); text-align:center;">${presentCount}</td>`;
+        row.innerHTML = rowHTML;
+        tbody.appendChild(row);
+    });
+};
+
+// Function to save to Firebase
+window.saveManualAttendance = async function(userId, monthYear, day, value) {
+    const val = value.toUpperCase();
+    if (!['P', 'A', 'L', ''].includes(val)) {
+        showNotification("Use P, A, or L", "error");
+        return;
+    }
+
+    const user = window.users.find(u => u.id === userId);
+    if (!user) return;
+
+    if (!user.manualAttendance) user.manualAttendance = {};
+    if (!user.manualAttendance[monthYear]) user.manualAttendance[monthYear] = {};
+    
+    user.manualAttendance[monthYear][day] = val;
+
+    if (window.updateDoc && window.db) {
+        await window.updateDoc(window.doc(window.db, "users", userId), {
+            manualAttendance: user.manualAttendance
+        });
+        renderAttendanceSheet(); // Refresh colors and count
+    }
+};
 function renderFinanceSection() {
     const selectedMonth = currentFinanceMonth;
     
@@ -5393,10 +5551,11 @@ function fixDropdownPositioning() {
         }
         function getPickupStatusClass(status) {
             switch(status) {
-                case 'pickup confirmed': return 'status-paid';   // Green
-                case 'canceled': return 'status-unpaid';         // Red
-                case 'booked': return 'status-unassigned';       // Yellow/Orange
-                default: return 'status-default';               // Gray
+                case 'pickup confirmed': return 'status-paid';
+                case 'canceled': return 'status-unpaid';
+                case 'booked': return 'status-unassigned';
+                case 'working': return 'status-working'; // This matches your purple CSS class
+                default: return 'status-default';
             }
         }
         
@@ -5404,7 +5563,8 @@ function fixDropdownPositioning() {
             switch(status) {
                 case 'pickup confirmed': return 'Confirmed';
                 case 'canceled': return 'Canceled';
-                case 'booked': return 'Booked';                 // NEW
+                case 'booked': return 'Booked';
+                case 'working': return 'Working';
                 default: return 'Not Yet';
             }
         }
@@ -5438,13 +5598,7 @@ function login() {
     showLoader();
     
     setTimeout(() => {
-        // Maintenance check (12AM - 1AM)
-        const now = new Date();
-        if (now.getHours() === 0) { 
-            showNotification('System is under maintenance. Login allowed after 1:00 AM.', 'error');
-            hideLoader();
-            return;
-        }
+        
 
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value.trim();
@@ -6391,18 +6545,15 @@ function renderAdminProfilesTable() {
     const tbody = document.querySelector('#admin-profiles-table tbody');
     tbody.innerHTML = '';
     
-    // Include 'booked' in the pending list so admin can still manage them
-    const pendingProfiles = invoices.filter(inv => 
-        inv.pickupStatus === 'no status yet' || 
-        inv.pickupStatus === 'booked' || 
-        !inv.pickupStatus
-    );
+    // MASTER LIST: We take ALL invoices without filtering by status
+    const allProfiles = invoices; 
     
-    const filteredProfiles = filterByMonth(pendingProfiles, currentProfilesMonth);
+    // We only filter by the selected month to keep the list organized
+    const filteredProfiles = filterByMonth(allProfiles, currentProfilesMonth);
     
     if (filteredProfiles.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">No pending/booked profiles for this month</td>`;
+        row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">No profiles found for this month</td>`;
         tbody.appendChild(row);
         return;
     }
@@ -6411,9 +6562,9 @@ function renderAdminProfilesTable() {
     const availableDrivers = users.filter(user => user.role === 'driver');
     
     sortedProfiles.forEach(profile => {
+        // Ensure there is a default status if none exists
         if (!profile.pickupStatus) { profile.pickupStatus = 'no status yet'; }
         
-        // Get display text
         const pickupStatusText = getPickupStatusText(profile.pickupStatus);
         
         const row = document.createElement('tr');
@@ -6436,13 +6587,14 @@ function renderAdminProfilesTable() {
             </td>
             <td>
                 <div class="table-choice-container" id="pickup-status-container-${profile.id}">
-                    <div class="table-choice-box ${profile.pickupStatus !== 'no status yet' ? 'selected' : ''}" id="pickup-status-choice-${profile.id}">
+                    <div class="table-choice-box ${getPickupStatusClass(profile.pickupStatus)} selected" id="pickup-status-choice-${profile.id}">
                         <span>${pickupStatusText}</span>
                         <span>▼</span>
                     </div>
                     <div class="table-choice-options">
                         <div class="table-choice-option" data-value="no status yet">Not Yet</div>
                         <div class="table-choice-option" data-value="booked">Booked</div> 
+                        <div class="table-choice-option" data-value="working">Working</div>
                         <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
                         <div class="table-choice-option" data-value="canceled">Canceled</div>
                     </div>
@@ -6456,8 +6608,10 @@ function renderAdminProfilesTable() {
         `;
         tbody.appendChild(row);
     });
+    // Essential to re-run the dropdown logic
     initializeAdminTableChoiceBoxes();
 }
+
 function renderAdminCancelledTable() {
     const tbody = document.querySelector('#admin-cancelled-table tbody');
     tbody.innerHTML = '';
@@ -8509,7 +8663,203 @@ window.openFullRegisterModal = function(empId) {
     
     document.getElementById('register-input-modal').style.display = 'block';
 };
+// 1. Toggle between the two sub-sections
+function toggleExpenseSubPart(part, btn) {
+    document.querySelectorAll('.expense-subpart').forEach(p => p.style.display = 'none');
+    document.getElementById('sub-' + part).style.display = 'block';
+    
+    // Update button visual state
+    btn.parentElement.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    if(part === 'company-expenses') renderExpensesSection();
+    else renderPayableReceivableSection();
+}
 
+// 2. Save Company Expense
+async function saveNewExpense() {
+    const amount = parseFloat(document.getElementById('exp-amount').value);
+    const detail = document.getElementById('exp-note').value;
+    
+    if(isNaN(amount) || !detail) {
+        showNotification("Please enter amount and detail", "error");
+        return;
+    }
+
+    const newExp = {
+        id: "EXP-" + Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        amount: amount,
+        detail: detail,
+        accountHolder: "Select Holder",
+        status: "unpaid"
+    };
+
+    try {
+        await setDoc(doc(db, "company_expenses", newExp.id), newExp);
+        closeAddExpenseModal();
+        // Clear inputs
+        document.getElementById('exp-amount').value = '';
+        document.getElementById('exp-note').value = '';
+        showNotification("Expense Added Successfully", "success");
+    } catch (e) {
+        showNotification("Error saving expense", "error");
+    }
+}
+
+// 3. Save Stakeholder Entry
+async function saveStakeholderEntry() {
+    const name = document.getElementById('sh-name').value.trim();
+    const categorySelector = document.querySelector('input[name="sh-category"]:checked');
+    const category = categorySelector ? categorySelector.value : 'others';
+
+    if(!name) {
+        showNotification("Please enter a name", "error");
+        return;
+    }
+
+    const newSH = {
+        id: "SH-" + Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        name: name,
+        category: category,
+        amount: 0, // Automatically set to 0 as it's no longer asked
+        description: "N/A", // Automatically set to N/A
+        type: "payable", // Default starting type
+        status: "unpaid" // Default starting status
+    };
+
+    try {
+        if (window.setDoc && window.db) {
+            await setDoc(doc(db, "stakeholders", newSH.id), newSH);
+            closeStakeholderModal();
+            document.getElementById('sh-name').value = ''; // Clear input
+            showNotification("Stakeholder Added Successfully", "success");
+        }
+    } catch (e) {
+        console.error("Error:", e);
+        showNotification("Error saving stakeholder", "error");
+    }
+}
+
+// 4. Render Company Expenses Table
+function renderExpensesSection() {
+    const tbody = document.querySelector('#expenses-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const data = window.company_expenses || [];
+    // Sort newest first
+    data.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    data.forEach(exp => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${exp.date}</td>
+            <td>AED ${parseFloat(exp.amount).toFixed(2)}</td>
+            <td>${exp.detail}</td>
+            <td>
+                <div class="table-choice-container">
+                    <div class="table-choice-box ${exp.accountHolder !== 'Select Holder' ? 'selected' : ''}">
+                        <span>${exp.accountHolder}</span><span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        ${window.users.map(u => `<div class="table-choice-option" onclick="updateExpField('${exp.id}', 'accountHolder', '${u.fullname || u.username}')">${u.fullname || u.username}</div>`).join('')}
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="table-choice-container">
+                    <div class="table-choice-box ${exp.status === 'paid' ? 'status-paid' : 'status-unpaid'} selected">
+                        <span>${exp.status.toUpperCase()}</span><span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        <div class="table-choice-option" onclick="updateExpField('${exp.id}', 'status', 'paid')">PAID</div>
+                        <div class="table-choice-option" onclick="updateExpField('${exp.id}', 'status', 'unpaid')">UNPAID</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <button class="bubbles btn-small btn-danger" onclick="deleteDoc(doc(db, 'company_expenses', '${exp.id}'))">
+                    <span class="text">Delete</span>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    // Re-initialize the dropdown click listeners for new rows
+    initializeAdminTableChoiceBoxes();
+}
+
+// 5. Render Receivables & Payables Table
+function renderPayableReceivableSection() {
+    const tbody = document.querySelector('#receivable-payable-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const data = window.stakeholders || [];
+    data.sort((a,b) => new Date(b.date) - new Date(a.date));
+
+    data.forEach(sh => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${sh.date}</td>
+            <td>${sh.name}</td>
+            <td>AED ${parseFloat(sh.amount).toFixed(2)}</td>
+            <td>${sh.description}</td>
+            <td>
+                <div class="table-choice-container">
+                    <div class="table-choice-box selected">
+                        <span>${sh.type.toUpperCase()}</span><span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        <div class="table-choice-option" onclick="updateSHField('${sh.id}', 'type', 'payable')">PAYABLE</div>
+                        <div class="table-choice-option" onclick="updateSHField('${sh.id}', 'type', 'receivable')">RECEIVABLE</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="table-choice-container">
+                    <div class="table-choice-box ${sh.status === 'paid' ? 'status-paid' : 'status-unpaid'} selected">
+                        <span>${sh.status.toUpperCase()}</span><span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        <div class="table-choice-option" onclick="updateSHField('${sh.id}', 'status', 'paid')">PAID</div>
+                        <div class="table-choice-option" onclick="updateSHField('${sh.id}', 'status', 'unpaid')">UNPAID</div>
+                    </div>
+                </div>
+            </td>
+            <td style="color: var(--accent); font-weight: bold;">${sh.category.toUpperCase()}</td>
+            <td>
+                <button class="bubbles btn-small btn-danger" onclick="deleteDoc(doc(db, 'stakeholders', '${sh.id}'))">
+                    <span class="text">Delete</span>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+    initializeAdminTableChoiceBoxes();
+}
+
+// Database Helper Functions
+async function updateExpField(id, field, value) {
+    await updateDoc(doc(db, "company_expenses", id), { [field]: value });
+    showNotification("Expense Updated", "success");
+}
+
+async function updateSHField(id, field, value) {
+    await updateDoc(doc(db, "stakeholders", id), { [field]: value });
+    showNotification("Entry Updated", "success");
+}
+
+// Modal Toggle Helpers
+function showAddStakeholderModal() {
+    document.getElementById('add-stakeholder-modal').style.display = 'block';
+}
+
+function closeStakeholderModal() {
+    document.getElementById('add-stakeholder-modal').style.display = 'none';
+}
 window.saveFullRegisterValues = async function() {
     const emp = users.find(u => u.id === currentRegisterEmployeeId);
     if (!emp) return;
@@ -9017,37 +9367,18 @@ window.dismissCenterNotifications = function() {
     <!-- Add Expense Modal -->
     <div id="add-expense-modal" class="invoice-modal">
         <div class="invoice-modal-content" style="max-width: 500px;">
-            <button class="close-modal" onclick="closeAddExpenseModal()">&times;</button>
-            <div class="invoice-header">
-                <h2>Add New Expense</h2>
-                <p>Record company expenses</p>
-            </div>
-            
+            <button class="close-modal" onclick="closeAddExpenseModal()">×</button>
+            <div class="invoice-header"><h2>Add Company Expense</h2></div>
             <div class="invoice-form">
                 <div class="inputbox">
-                    <input type="text" id="expense-type" required="required">
-                    <span>Expense Type (e.g., Fuel, Maintenance, Office)</span>
-                    <i></i>
+                    <input type="number" id="exp-amount" required>
+                    <span>Expense Amount (AED)</span><i></i>
                 </div>
                 <div class="inputbox">
-                    <input type="number" id="expense-amount" step="0.01" required="required">
-                    <span>Amount (AED    )</span>
-                    <i></i>
+                    <input type="text" id="exp-note" required>
+                    <span>Detail / Note</span><i></i>
                 </div>
-                <div class="inputbox">
-                    <input type="text" id="expense-description" required="required">
-                    <span>Description</span>
-                    <i></i>
-                </div>
-                
-                <div class="form-row">
-                    <button class="bubbles btn-success" onclick="addNewExpense()">
-                        <span class="text">Save Expense</span>
-                    </button>
-                    <button class="bubbles btn-secondary" onclick="closeAddExpenseModal()">
-                        <span class="text">Cancel</span>
-                    </button>
-                </div>
+                <button class="bubbles btn-success" onclick="saveNewExpense()"><span class="text">Save Expense</span></button>
             </div>
         </div>
     </div>
@@ -9093,6 +9424,24 @@ window.dismissCenterNotifications = function() {
             </button>
         </div>
     </div>
+    <div id="add-stakeholder-modal" class="invoice-modal">
+        <div class="invoice-modal-content" style="max-width: 500px;">
+            <button class="close-modal" onclick="closeStakeholderModal()">×</button>
+            <div class="invoice-header"><h2>Add Stakeholder Entry</h2></div>
+            <div class="invoice-form">
+                <div class="inputbox">
+                    <input type="text" id="sh-name" required>
+                    <span>Stakeholder Name</span><i></i>
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <p style="color: var(--text-secondary); margin-bottom: 10px;">Holder Type:</p>
+                    <label><input type="radio" name="sh-category" value="employee"> Employee</label>
+                    <label style="margin-left: 20px;"><input type="radio" name="sh-category" value="others" checked> Others</label>
+                </div>
+                <button class="bubbles btn-success" onclick="saveStakeholderEntry()"><span class="text">Save Entry</span></button>
+            </div>
+        </div>
+    </div>   
 </body>
 </html>
 
