@@ -1762,11 +1762,14 @@ th, td {
                     <table id="admin-invoices-table">
                         <thead>
                             <tr>
-                                <th>Agent Name</th>
-                                <th>Driver Side Payment</th>
-                                <th>Passenger Side Payment</th>
-                                <th>Driver Payment Status</th>
-                                <th>Passenger Payment Status</th>
+                                <th>Date Confirmed</th>
+                                <th>Passenger Name</th>
+                                <th>Driver Payment</th>
+                                <th>Passenger Payment</th>
+                                <th>Driver Status</th>
+                                <th>Passenger Status</th>
+                                <th>Due Date</th>
+                                <th>Invoice Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -1940,7 +1943,14 @@ th, td {
     <!-- Financial Overview Subsection -->
     <div id="finance-overview" class="finance-subsection active">
         <h3>Financial Overview</h3>
-        
+        <div style="margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+            <button class="bubbles btn-small" onclick="document.getElementById('exchange-rate-modal').style.display='block'">
+                <span class="text">⚙️ Set Exchange Rate</span>
+            </button>
+            <div id="current-rate-display" style="background: rgba(69, 243, 255, 0.1); padding: 8px 15px; border-radius: 8px; border: 1px solid var(--accent); color: var(--accent); font-weight: bold;">
+                1 AED = 75.00 Rs
+            </div>
+        </div>     
         <!-- Main Financial Stats -->
         <div class="stats-grid">
             <div class="stat-card">
@@ -3971,33 +3981,29 @@ function renderSalarySection() {
     
     const allEmployees = users.filter(u => u.role !== 'admin');
     
-    if (allEmployees.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">No employees found</td></tr>`;
-        return;
-    }
-    
     allEmployees.forEach(employee => {
         const salaryData = calculateEmployeeSalary(employee.id);
+        const isFullyPaid = salaryData.pendingAmount <= 0;
         
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${employee.fullname || employee.username}</td>
-            <td>Rs ${salaryData.basicSalary.toFixed(2)}</td>
-            <td>Rs ${salaryData.commission.toFixed(2)}</td>
-            <td style="color: var(--text-secondary);">Rs ${salaryData.bonus.toFixed(2)}</td>
+            <td>AED ${salaryData.basicSalary.toFixed(2)}</td>
+            <td>AED ${salaryData.commission.toFixed(2)}</td>
+            <td>AED ${salaryData.bonus.toFixed(2)}</td>
             <td>
-                <span class="status-badge ${salaryData.pendingAmount > 0 ? 'status-unpaid' : 'status-paid'}" 
+                <span class="status-badge ${isFullyPaid ? 'status-paid' : 'status-unpaid'}" 
                       style="font-weight: bold; min-width: 110px;">
-                    Rs ${salaryData.totalSalary.toFixed(2)}
+                    AED ${isFullyPaid ? '0.00' : salaryData.pendingAmount.toFixed(2)}
                 </span>
             </td>
             <td>
-                <button class="bubbles btn-small" onclick="showPartialPaymentModal('${employee.id}')" ${salaryData.pendingAmount <= 0 ? 'disabled' : ''}>
+                <button class="bubbles btn-small" onclick="showPartialPaymentModal('${employee.id}')" ${isFullyPaid ? 'disabled' : ''}>
                     <span class="text">Partial Pay</span>
                 </button>
             </td>
             <td>
-                <button class="bubbles btn-small btn-success" onclick="markSalaryPaid('${employee.id}')" ${salaryData.pendingAmount <= 0 ? 'disabled' : ''}>
+                <button class="bubbles btn-small btn-success" onclick="markSalaryPaid('${employee.id}')" ${isFullyPaid ? 'disabled' : ''}>
                     <span class="text">Mark Paid</span>
                 </button>
             </td>
@@ -4010,48 +4016,62 @@ function calculateEmployeeSalary(employeeId) {
     const employee = users.find(u => u.id === employeeId);
     if (!employee) return { totalSalary: 0, pendingAmount: 0 };
 
-    const reg = employee.salaryRegister || { basic: 0, commission: 0, bonusAmt: 0, bonusPct: 0 };
+    const reg = employee.salaryRegister || { basic: 0, commission: 0, bonusAmt: 0 };
     
+    // 1. Get Current Info
+    const now = new Date();
+    const currentMonthStr = now.toISOString().substr(0, 7); // e.g. "2026-02"
+    
+    // Check if today is the last day of the month or if we are looking at a past month
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+    const isLastDayOrLater = tomorrow.getMonth() !== now.getMonth();
+
     const basic = parseFloat(reg.basic) || 0;
     const commission = parseFloat(reg.commission) || 0;
-    const bonusBase = parseFloat(reg.bonusAmt) || 0;
+    const potentialBonus = parseFloat(reg.bonusAmt) || 0;
 
-    // --- NEW DYNAMIC PERFORMANCE LOGIC ---
-    // Calculate achievement % for the current active targets
-    const currentMonth = new Date().toISOString().substr(0, 7);
+    // 2. Calculate Achievement for the month
     const userTargets = employee.targets || [];
-    
-    // Filter for active targets in the current month
     const monthlyTargets = userTargets.filter(t => 
-        t.status === 'Active' && 
-        (t.assignedDate && t.assignedDate.startsWith(currentMonth))
+        (t.assignedDate && t.assignedDate.startsWith(currentMonthStr))
     );
 
-    let performancePercentage = 0;
+    let performanceRate = 0;
     if (monthlyTargets.length > 0) {
         const totalTargetGoal = monthlyTargets.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
         const totalAchievedSoFar = monthlyTargets.reduce((sum, t) => sum + (parseFloat(t.achievedAmount) || 0), 0);
-        
-        if (totalTargetGoal > 0) {
-            performancePercentage = (totalAchievedSoFar / totalTargetGoal) * 100;
-        }
+        if (totalTargetGoal > 0) performanceRate = (totalAchievedSoFar / totalTargetGoal);
     }
-    // Use the performance percentage instead of reg.bonusPct
-    const calculatedBonus = (bonusBase * (performancePercentage / 100));
-    // --------------------------------------
 
-    const totalSalary = basic + commission + calculatedBonus;
-    const paidAmount = employee.partialPayments ? employee.partialPayments.reduce((sum, p) => sum + p.amount, 0) : 0;
+    // 3. AUTOMATIC BONUS RULE: 
+    // Only add the bonus if the month has ended (Last Day). 
+    // Otherwise, show only Basic + Commission.
+    let earnedBonus = 0;
+    if (isLastDayOrLater) {
+        earnedBonus = potentialBonus * performanceRate;
+    }
+
+    const totalSalary = basic + commission + earnedBonus;
+
+    // 4. MONTHLY RESET: Only count payments from THIS month
+    const paidAmount = employee.partialPayments ? 
+        employee.partialPayments
+            .filter(p => p.date && p.date.startsWith(currentMonthStr))
+            .reduce((sum, p) => sum + p.amount, 0) 
+        : 0;
+
     const pendingAmount = totalSalary - paidAmount;
 
     return {
         basicSalary: basic,
         commission: commission,
-        bonus: calculatedBonus, 
-        performanceRate: performancePercentage, // added for UI display
+        bonus: earnedBonus, 
+        performanceRate: performanceRate * 100,
         totalSalary: totalSalary,
         pendingAmount: pendingAmount,
-        paidAmount: paidAmount
+        paidAmount: paidAmount,
+        isMonthClosing: isLastDayOrLater
     };
 }
 
@@ -4167,114 +4187,140 @@ function closePartialPaymentModal() {
     document.getElementById('partial-payment-amount').value = '';
 }
 
-function processPartialPayment() {
-    if (!currentSelectedEmployeeId) { showNotification('No employee selected', 'error'); return; }
-    
+// --- UPDATED SALARY TO LEDGER CONNECTION ---
+
+window.processPartialPayment = async function() {
+    if (!currentSelectedEmployeeId) return;
     const paymentAmount = parseFloat(document.getElementById('partial-payment-amount').value);
     if (isNaN(paymentAmount) || paymentAmount <= 0) { showNotification('Invalid amount', 'error'); return; }
 
     const employee = users.find(u => u.id === currentSelectedEmployeeId);
-    const salaryData = calculateEmployeeSalary(currentSelectedEmployeeId);
+    const dateTime = getCurrentDateTime();
+    const uniqueId = Date.now();
 
-    if (paymentAmount > salaryData.pendingAmount) {
-        showNotification('Amount exceeds pending', 'error'); return;
-    }
-
-    const partialPayment = {
-        id: generateId('partpay'),
-        amount: paymentAmount,
-        date: getCurrentDateTime().date,
-        time: getCurrentDateTime().time,
-        processedBy: currentUser.id
-    };
-
-    const expense = {
-        id: generateId('exp'),
-        type: 'Salary Payment',
-        amount: paymentAmount,
-        description: `Partial salary for ${employee.username}`,
-        date: getCurrentDateTime().date,
-        time: getCurrentDateTime().time,
-        addedBy: currentUser.id
-    };
-
-    // SAVE TO DATABASE
     if (window.updateDoc && window.db) {
-        let currentPayments = employee.partialPayments || [];
-        currentPayments.push(partialPayment);
-        
-        // Update Employee
-        window.updateDoc(window.doc(window.db, "users", employee.id), { partialPayments: currentPayments });
-        
-        // Add to Expenses
-        window.setDoc(window.doc(window.db, "expenses", expense.id), expense);
-        
-        showNotification('Partial payment saved', 'success');
-        closePartialPaymentModal();
-    }
-}
+        showLoader();
+        try {
+            // 1. UPDATE USER DATA (For deduction in Salary Status)
+            let currentPayments = employee.partialPayments || [];
+            currentPayments.push({ id: 'PP' + uniqueId, amount: paymentAmount, date: dateTime.date, time: dateTime.time });
+            await window.updateDoc(window.doc(window.db, "users", employee.id), { partialPayments: currentPayments });
 
-function markSalaryPaid(employeeId) {
+            // 2. ADD TO FINANCE OVERVIEW (The logic for Net Profit calculation)
+            const overviewExpId = "FIN-EXP-" + uniqueId;
+            await window.setDoc(window.doc(window.db, "expenses", overviewExpId), {
+                id: overviewExpId,
+                date: dateTime.date,
+                amount: paymentAmount,
+                type: "Salary Payment",
+                description: `Salary: ${employee.fullname || employee.username}`
+            });
+
+            // 3. ADD TO STAKEHOLDER LEDGER (For "View Details" button)
+            let sh = window.stakeholders.find(s => s.id === employee.id);
+            let currentEntries = sh ? (sh.entries || []) : [];
+            currentEntries.push({
+                date: dateTime.date,
+                amount: paymentAmount,
+                description: "Partial Salary Payment",
+                type: "payable",
+                status: "paid"
+            });
+            await window.setDoc(window.doc(window.db, "stakeholders", employee.id), {
+                id: employee.id,
+                name: employee.fullname || employee.username,
+                category: "employee",
+                entries: currentEntries
+            }, { merge: true });
+
+            // 4. ADD TO COMPANY EXPENSE TABLE
+            const companyExpId = "CO-EXP-" + uniqueId;
+            await window.setDoc(window.doc(window.db, "company_expenses", companyExpId), {
+                id: companyExpId,
+                date: dateTime.date,
+                amount: paymentAmount,
+                detail: "Salary",
+                accountHolder: employee.fullname || employee.username,
+                status: "paid"
+            });
+
+            showNotification('Salary processed and synced with Finance Overview', 'success');
+            closePartialPaymentModal();
+        } catch (e) {
+            console.error(e);
+            showNotification('Sync Error', 'error');
+        }
+        hideLoader();
+    }
+};
+
+window.markSalaryPaid = async function(employeeId) {
     const employee = users.find(u => u.id === employeeId);
     if (!employee) return;
     
     const salaryData = calculateEmployeeSalary(employeeId);
+    const remainingBalance = salaryData.pendingAmount;
+    if (remainingBalance <= 0) return;
 
-    if (confirm(`Mark remaining AED    ${salaryData.pendingAmount.toFixed(2)} as paid?`)) {
-        const finalPayment = {
-            id: generateId('finalpay'),
-            amount: salaryData.pendingAmount,
-            date: getCurrentDateTime().date,
-            time: getCurrentDateTime().time,
-            processedBy: currentUser.id,
-            isFinalPayment: true
-        };
+    if (confirm(`Mark remaining AED ${remainingBalance.toFixed(2)} as fully paid?`)) {
+        const dateTime = getCurrentDateTime();
+        const uniqueId = Date.now();
 
-        const expense = {
-            id: generateId('exp'),
-            type: 'Salary Payment',
-            amount: salaryData.pendingAmount,
-            description: `Final salary for ${employee.username}`,
-            date: getCurrentDateTime().date,
-            time: getCurrentDateTime().time,
-            addedBy: currentUser.id
-        };
-
-        const historyEntry = {
-            month: currentFinanceMonth,
-            totalSalary: salaryData.totalSalary,
-            paidAmount: salaryData.totalSalary,
-            paymentDate: getCurrentDateTime().date
-        };
-
-        // SAVE TO DATABASE
         if (window.updateDoc && window.db) {
-            let currentPayments = employee.partialPayments || [];
-            currentPayments.push(finalPayment);
+            showLoader();
+            try {
+                // 1. UPDATE USER DATA
+                let currentPayments = employee.partialPayments || [];
+                currentPayments.push({ id: 'FP' + uniqueId, amount: remainingBalance, date: dateTime.date, isFinal: true });
+                await window.updateDoc(window.doc(window.db, "users", employee.id), { partialPayments: currentPayments });
 
-            let currentHistory = employee.salaryHistory || [];
-            currentHistory.push(historyEntry);
+                // 2. ADD TO FINANCE OVERVIEW
+                const overviewExpId = "FIN-EXP-FULL-" + uniqueId;
+                await window.setDoc(window.doc(window.db, "expenses", overviewExpId), {
+                    id: overviewExpId,
+                    date: dateTime.date,
+                    amount: remainingBalance,
+                    type: "Salary Payment",
+                    description: `Full Salary: ${employee.fullname || employee.username}`
+                });
 
-            // Update Employee
-            window.updateDoc(window.doc(window.db, "users", employee.id), { 
-                partialPayments: currentPayments,
-                salaryHistory: currentHistory
-            });
+                // 3. ADD TO STAKEHOLDER LEDGER
+                let sh = window.stakeholders.find(s => s.id === employee.id);
+                let currentEntries = sh ? (sh.entries || []) : [];
+                currentEntries.push({
+                    date: dateTime.date,
+                    amount: remainingBalance,
+                    description: "Final Salary Clearance",
+                    type: "payable",
+                    status: "paid"
+                });
+                await window.setDoc(window.doc(window.db, "stakeholders", employee.id), {
+                    id: employee.id,
+                    name: employee.fullname || employee.username,
+                    category: "employee",
+                    entries: currentEntries
+                }, { merge: true });
 
-            // Add to Expenses
-            window.setDoc(window.doc(window.db, "expenses", expense.id), expense);
-            
-            showNotification('Salary marked fully paid', 'success');
+                // 4. ADD TO COMPANY EXPENSE TABLE
+                const companyExpId = "CO-EXP-FULL-" + uniqueId;
+                await window.setDoc(window.doc(window.db, "company_expenses", companyExpId), {
+                    id: companyExpId,
+                    date: dateTime.date,
+                    amount: remainingBalance,
+                    detail: "Salary",
+                    accountHolder: employee.fullname || employee.username,
+                    status: "paid"
+                });
+
+                showNotification('Full salary synced with Finance Overview', 'success');
+            } catch (e) {
+                console.error(e);
+                showNotification('Sync Error', 'error');
+            }
+            hideLoader();
         }
     }
-}
-
-
-
-
-
-
-
+};
 
 
 
@@ -4313,8 +4359,92 @@ function showFinanceSubSection(subsection) {
 
 
 // Add this constant at the top of your finance script area
-const RS_TO_AED_RATE = 0.040; // Example: 1 PKR/INR to AED. Adjust this rate as needed.
+// 1. Initial Rate
+let AED_TO_RS_RATE = 75.0; 
 
+// 2. Save function for the new modal
+window.saveExchangeRate = function() {
+    const aedVal = parseFloat(document.getElementById('rate-aed-input').value);
+    const rsVal = parseFloat(document.getElementById('rate-rs-input').value);
+    
+    if (!isNaN(aedVal) && !isNaN(rsVal) && aedVal > 0) {
+        AED_TO_RS_RATE = rsVal / aedVal;
+        
+        // Update display on the main page
+        document.getElementById('current-rate-display').textContent = `1 AED = ${AED_TO_RS_RATE.toFixed(2)} Rs`;
+        
+        // Close modal and notify
+        document.getElementById('exchange-rate-modal').style.display = 'none';
+        showNotification(`Conversion Updated: 1 AED = ${AED_TO_RS_RATE.toFixed(2)} Rs`, 'success');
+        
+        // Refresh the finance numbers
+        renderFinanceOverview(); 
+    } else {
+        showNotification("Please enter valid positive numbers", "error");
+    }
+};
+
+// 3. Updated render function
+window.renderFinanceOverview = function() {
+    const selectedMonth = currentFinanceMonth;
+    
+    // Calculate Revenue (Transactions are stored in AED)
+    const monthTransactions = finance.transactions.filter(t => 
+        t.date.startsWith(selectedMonth) && 
+        (t.type === 'driver_payment' || t.type === 'service_charges')
+    );
+    
+    const driverRevenueAED = monthTransactions
+        .filter(t => t.type === 'driver_payment')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const passengerRevenueAED = monthTransactions
+        .filter(t => t.type === 'service_charges')
+        .reduce((sum, t) => sum + t.amount, 0);
+    
+    const totalRevenueAED = driverRevenueAED + passengerRevenueAED;
+    const totalRevenueRS = totalRevenueAED * AED_TO_RS_RATE;
+
+    // Calculate Expenses (Stored in Rs)
+    const monthExpenses = expenses.filter(exp => exp.date.startsWith(selectedMonth));
+    const totalExpensesRS = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+    
+    // Net Calculation (Convert everything to Rs for the Net display)
+    const netProfitRS = totalRevenueRS - totalExpensesRS;
+
+    // --- UI UPDATES ---
+    
+    // Stats Cards
+    document.getElementById('total-profit-overview').textContent = `AED ${totalRevenueAED.toFixed(2)}`;
+    document.getElementById('total-expenses-overview').textContent = `Rs ${totalExpensesRS.toFixed(2)}`;
+    
+    // "Net Profit" card now shows only Rs
+    const netProfitCard = document.getElementById('net-profit');
+    netProfitCard.textContent = `Rs ${netProfitRS.toFixed(2)}`;
+    netProfitCard.parentElement.querySelector('.stat-label').textContent = "Net Profit (Rs)";
+    
+    // Revenue items - ONLY show Rs
+    document.getElementById('driver-revenue').textContent = `Rs ${(driverRevenueAED * AED_TO_RS_RATE).toFixed(2)}`;
+    document.getElementById('passenger-revenue').textContent = `Rs ${(passengerRevenueAED * AED_TO_RS_RATE).toFixed(2)}`;
+    document.getElementById('total-revenue').textContent = `Rs ${totalRevenueRS.toFixed(2)}`;
+
+    // Expenses - show Rs
+    document.getElementById('operational-expenses').textContent = `Rs ${totalExpensesRS.toFixed(2)}`;
+
+    // Final Detail Breakdown
+    const netProfitElement = document.getElementById('net-profit-detailed');
+    netProfitElement.innerHTML = `
+        <div style="margin-bottom: 10px; border-bottom: 1px dashed rgba(255,255,255,0.2); padding-bottom: 5px;">
+            <strong>- total revenue in AED =</strong> ${totalRevenueAED.toFixed(2)} AED
+        </div>
+        <div style="margin-bottom: 10px;">
+            <strong>- total revenue in Rs =</strong> ${totalRevenueRS.toFixed(2)} Rs
+        </div>
+        <div style="font-size: 1.1em; color: var(--accent); margin-top: 10px;">
+            <strong>Net Profit:</strong> Rs ${netProfitRS.toFixed(2)}
+        </div>
+    `;
+};
 function renderFinanceOverview() {
     const selectedMonth = currentFinanceMonth;
     
@@ -5070,97 +5200,7 @@ function renderAdminProfilesTable() {
     initializeAdminTableChoiceBoxes();
 }
 
-function renderAdminInvoicesTable() {
-    const tbody = document.querySelector('#admin-invoices-table tbody');
-    tbody.innerHTML = '';
-    
-    // Filter invoices that are confirmed pickups
-    const confirmedInvoices = invoices.filter(inv => inv.pickupStatus === 'pickup confirmed');
-    
-    // Filter based on current filter
-    let filteredInvoices = confirmedInvoices;
-    
-    switch(currentAdminFilter) {
-        case 'unpaid':
-            filteredInvoices = confirmedInvoices.filter(inv => inv.paymentStatus === 'unpaid');
-            break;
-        case 'paid':
-            filteredInvoices = confirmedInvoices.filter(inv => inv.paymentStatus === 'paid');
-            break;
-        case 'all':
-        default:
-            filteredInvoices = confirmedInvoices;
-    }
-    
-    if (filteredInvoices.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="7" style="text-align: center; padding: 20px;">
-                No invoices found
-            </td>
-        `;
-        tbody.appendChild(row);
-        return;
-    }
-    
-    // Sort by date (newest first)
-    filteredInvoices = sortInvoicesByDate(filteredInvoices);
-    
-    filteredInvoices.forEach(invoice => {
-        // Calculate driver side payment (10% of remaining budget after service charges)
-        const driverSidePayment = invoice.driverCharges || 0;
-  
-        // Payment status
-        const paymentStatus = invoice.paymentStatus || 'unpaid';
-        const paymentStatusClass = paymentStatus === 'paid' ? 'status-paid' : 'status-unpaid';
-        const paymentStatusText = paymentStatus === 'paid' ? 'Paid' : 'Not Yet';
-        
-        // Service charges payment status
-        const serviceChargesStatus = invoice.serviceChargesPaid ? 'Paid' : 'Not Yet';
-        const serviceChargesStatusClass = invoice.serviceChargesPaid ? 'status-paid' : 'status-unpaid';
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${invoice.passengerAgent || 'N/A'}</td>
-            <td>AED    ${(invoice.driverCharges || 0).toFixed(2)}</td>
-            <td>AED    ${invoice.serviceCharges.toFixed(2)}</td>
-            <td>
-                <div class="table-choice-container" id="payment-status-container-${invoice.id}">
-                    <div class="table-choice-box ${paymentStatusClass} ${paymentStatus === 'paid' ? 'selected' : ''}" id="payment-status-choice-${invoice.id}">
-                        <span>${paymentStatusText}</span>
-                        <span>▼</span>
-                    </div>
-                    <div class="table-choice-options">
-                        <div class="table-choice-option" data-value="no status yet">Not Yet</div>
-                        <div class="table-choice-option" data-value="booked">Booked</div> <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
-                        <div class="table-choice-option" data-value="canceled">Canceled</div>
-                    </div>
-                </div>
-            </td>
-            <td>
-                <div class="table-choice-container" id="service-charges-status-container-${invoice.id}">
-                    <div class="table-choice-box ${serviceChargesStatusClass} ${invoice.serviceChargesPaid ? 'selected' : ''}" id="service-charges-status-choice-${invoice.id}">
-                        <span>${serviceChargesStatus}</span>
-                        <span>▼</span>
-                    </div>
-                    <div class="table-choice-options">
-                        <div class="table-choice-option" data-value="unpaid">Not Yet</div>
-                        <div class="table-choice-option" data-value="paid">Paid</div>
-                    </div>
-                </div>
-            </td>
-            <td>
-                <button class="bubbles btn-small" onclick="viewInvoiceDetails('${invoice.id}')">
-                    <span class="text">View Profile</span>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-    
-    // Initialize admin table choice boxes after rendering
-    initializeAdminTableChoiceBoxes();
-}
+
 window.renderAttendanceSheet = function() {
     // Get the value from the month picker
     let monthVal = document.getElementById('attendance-month-filter').value;
@@ -6773,6 +6813,7 @@ function updatePickupStatus(profileId, newStatus) {
     }
     if (newStatus === 'pickup confirmed') {
         updates.paymentStatus = 'unpaid';
+        updates.confirmedDate = getCurrentDateTime().date; // New field to track move to invoice section
     }
     // 'booked' status just saves via the default updates object
 
@@ -6926,95 +6967,168 @@ function refreshAllTables() {
 }
 function renderAdminInvoicesTable() {
     const tbody = document.querySelector('#admin-invoices-table tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
     
-    // Filter invoices that are confirmed pickups
+    // Filter profiles that are confirmed pickups
     const confirmedInvoices = invoices.filter(inv => inv.pickupStatus === 'pickup confirmed');
-    
-    // Filter based on current filter
-    let filteredInvoices = confirmedInvoices;
-    
-    switch(currentAdminFilter) {
-        case 'unpaid':
-            filteredInvoices = confirmedInvoices.filter(inv => inv.paymentStatus === 'unpaid');
-            break;
-        case 'paid':
-            filteredInvoices = confirmedInvoices.filter(inv => inv.paymentStatus === 'paid');
-            break;
-        case 'all':
-        default:
-            filteredInvoices = confirmedInvoices;
-    }
+    let filteredInvoices = sortInvoicesByDate(confirmedInvoices);
     
     if (filteredInvoices.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td colspan="7" style="text-align: center; padding: 20px;">
-                No invoices found
-            </td>
-        `;
-        tbody.appendChild(row);
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px;">No confirmed invoices found</td></tr>`;
         return;
     }
-    
-    // Sort by date (newest first)
-    filteredInvoices = sortInvoicesByDate(filteredInvoices);
-    
+
     filteredInvoices.forEach(invoice => {
-        // Calculate driver side payment (10% of remaining budget after service charges)
-        const remainingBudget = invoice.totalBudget - invoice.serviceCharges;
-        const driverSidePayment = remainingBudget * 0.10;
+        // Calculate Due Date (2 days after confirmation date)
+        const baseDate = invoice.confirmedDate || invoice.date; 
+        const confDate = new Date(baseDate);
+        const dueDateObj = new Date(confDate);
+        dueDateObj.setDate(confDate.getDate() + 2);
+        const dueDateStr = dueDateObj.toISOString().split('T')[0];
+
+        // Logic for remaining amounts and colors
+        const dRem = (invoice.driverCharges || 0) - (invoice.driverAmountPaid || 0);
+        const pRem = (invoice.serviceCharges || 0) - (invoice.passengerAmountPaid || 0);
         
-        // Payment status
-        const paymentStatus = invoice.paymentStatus || 'unpaid';
-        const paymentStatusClass = paymentStatus === 'paid' ? 'status-paid' : 'status-unpaid';
-        const paymentStatusText = paymentStatus === 'paid' ? 'Paid' : 'Not Yet';
-        
-        // Service charges payment status
-        const serviceChargesStatus = invoice.serviceChargesPaid ? 'Paid' : 'Not Yet';
-        const serviceChargesStatusClass = invoice.serviceChargesPaid ? 'status-paid' : 'status-unpaid';
-        
+        const dColor = dRem <= 0 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+        const pColor = pRem <= 0 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${invoice.passengerAgent || 'N/A'}</td>
-            <td>AED    ${(invoice.driverCharges || 0).toFixed(2)}</td>
-            <td>AED    ${invoice.serviceCharges.toFixed(2)}</td>
+            <td style="color: var(--accent);">${baseDate}</td>
+            <td>${invoice.passengerName || 'N/A'}</td>
+            <td style="color: ${dColor}; font-weight: bold;">AED ${dRem.toFixed(2)}</td>
+            <td style="color: ${pColor}; font-weight: bold;">AED ${pRem.toFixed(2)}</td>
+            
             <td>
-                <div class="table-choice-container" id="payment-status-container-${invoice.id}">
-                    <div class="table-choice-box ${paymentStatusClass} ${paymentStatus === 'paid' ? 'selected' : ''}" id="payment-status-choice-${invoice.id}">
-                        <span>${paymentStatusText}</span>
-                        <span>▼</span>
+                <div class="table-choice-container" id="driver-pay-status-container-${invoice.id}">
+                    <div class="table-choice-box" id="driver-pay-choice-${invoice.id}">
+                        <span>${invoice.driverPayStatus || 'Not Yet'}</span><span>▼</span>
                     </div>
                     <div class="table-choice-options">
-                        <div class="table-choice-option" data-value="unpaid">Not Yet</div>
-                        <div class="table-choice-option" data-value="paid">Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'driver', 'paid')">Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'driver', 'partially paid')">Partially Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'driver', 'not yet')">Not Yet</div>
                     </div>
                 </div>
             </td>
+
             <td>
-                <div class="table-choice-container" id="service-charges-status-container-${invoice.id}">
-                    <div class="table-choice-box ${serviceChargesStatusClass} ${invoice.serviceChargesPaid ? 'selected' : ''}" id="service-charges-status-choice-${invoice.id}">
-                        <span>${serviceChargesStatus}</span>
-                        <span>▼</span>
+                <div class="table-choice-container" id="pass-pay-status-container-${invoice.id}">
+                    <div class="table-choice-box" id="pass-pay-choice-${invoice.id}">
+                        <span>${invoice.passengerPayStatus || 'Not Yet'}</span><span>▼</span>
                     </div>
                     <div class="table-choice-options">
-                        <div class="table-choice-option" data-value="unpaid">Not Yet</div>
-                        <div class="table-choice-option" data-value="paid">Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'passenger', 'paid')">Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'passenger', 'partially paid')">Partially Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'passenger', 'not yet')">Not Yet</div>
                     </div>
                 </div>
             </td>
+
+            <td style="color: var(--status-unassigned);">${dueDateStr}</td>
+
             <td>
-                <button class="bubbles btn-small" onclick="viewInvoiceDetails('${invoice.id}')">
-                    <span class="text">View Profile</span>
-                </button>
+                <div class="table-choice-container">
+                    <div class="table-choice-box" style="border-color: ${getInvStatusColor(invoice.mainStatus)}">
+                        <span style="color: ${getInvStatusColor(invoice.mainStatus)}">${invoice.mainStatus || 'Draft'}</span><span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        <div class="table-choice-option" style="color: #a020f0;" onclick="updateMainInvStatus('${invoice.id}', 'sent')">Sent</div>
+                        <div class="table-choice-option" style="color: #00ff8c;" onclick="updateMainInvStatus('${invoice.id}', 'paid')">Paid</div>
+                        <div class="table-choice-option" style="color: #ff0057;" onclick="updateMainInvStatus('${invoice.id}', 'closed')">Closed</div>
+                        <div class="table-choice-option" style="color: #ffcc00;" onclick="updateMainInvStatus('${invoice.id}', 'draft')">Draft</div>
+                    </div>
+                </div>
+            </td>
+
+            <td>
+                <button class="bubbles btn-small" onclick="viewInvoiceDetails('${invoice.id}')"><span class="text">View</span></button>
             </td>
         `;
         tbody.appendChild(row);
     });
-    
-    // Initialize admin table choice boxes after rendering
     initializeAdminTableChoiceBoxes();
 }
+// Helper for Main Status Colors
+function getInvStatusColor(status) {
+    switch(status) {
+        case 'sent': return '#a020f0';
+        case 'paid': return '#00ff8c';
+        case 'closed': return '#ff0057';
+        case 'draft': return '#ffcc00';
+        default: return '#ffcc00';
+    }
+}
+
+// Logic for Driver/Passenger Payments
+window.handleInvoicePayment = async function(invId, userType, newStatus) {
+    const inv = invoices.find(i => i.id === invId);
+    if (!inv) return;
+
+    let amountPaid = 0;
+    let updates = {};
+
+    if (newStatus === 'paid') {
+        // Mark whole remaining as paid
+        const remaining = userType === 'driver' ? 
+            (inv.driverCharges - (inv.driverAmountPaid || 0)) : 
+            (inv.serviceCharges - (inv.passengerAmountPaid || 0));
+        amountPaid = remaining;
+        
+        if (userType === 'driver') {
+            updates.driverAmountPaid = inv.driverCharges;
+            updates.driverPayStatus = 'Paid';
+        } else {
+            updates.passengerAmountPaid = inv.serviceCharges;
+            updates.passengerPayStatus = 'Paid';
+        }
+    } else if (newStatus === 'partially paid') {
+        const input = prompt("Enter amount paid:");
+        amountPaid = parseFloat(input);
+        if (isNaN(amountPaid) || amountPaid <= 0) return;
+
+        if (userType === 'driver') {
+            updates.driverAmountPaid = (inv.driverAmountPaid || 0) + amountPaid;
+            updates.driverPayStatus = 'Partially Paid';
+        } else {
+            updates.passengerAmountPaid = (inv.passengerAmountPaid || 0) + amountPaid;
+            updates.passengerPayStatus = 'Partially Paid';
+        }
+    } else {
+        // reset to not yet
+        if (userType === 'driver') { updates.driverAmountPaid = 0; updates.driverPayStatus = 'Not Yet'; }
+        else { updates.passengerAmountPaid = 0; updates.passengerPayStatus = 'Not Yet'; }
+    }
+
+    // 1. Update Invoice in Database
+    if (window.updateDoc && window.db) {
+        await window.updateDoc(window.doc(window.db, "invoices", invId), updates);
+        
+        // 2. Add to Finance Overview if money was paid
+        if (amountPaid > 0) {
+            const dateTime = getCurrentDateTime();
+            const transId = "INV-PAY-" + Date.now();
+            await window.setDoc(window.doc(window.db, "finance_transactions", transId), {
+                id: transId,
+                invoiceId: invId,
+                amount: amountPaid,
+                date: dateTime.date,
+                type: userType === 'driver' ? 'driver_payment' : 'service_charges',
+                description: `Payment for ${inv.passengerName} (${userType})`
+            });
+        }
+        showNotification("Payment Updated & Synced", "success");
+    }
+};
+
+window.updateMainInvStatus = async function(invId, status) {
+    if (window.updateDoc && window.db) {
+        await window.updateDoc(window.doc(window.db, "invoices", invId), { mainStatus: status });
+        showNotification("Invoice Status Updated", "success");
+    }
+};
         // FIXED: Payment status function with proper updates
 async function updatePaymentStatus(invoiceId, newStatus) {
     const invoice = invoices.find(inv => inv.id === invoiceId);
@@ -9847,6 +9961,33 @@ window.dismissCenterNotifications = function() {
             <div style="margin-top: 20px; text-align: center;">
                 <button class="bubbles btn-secondary" onclick="closeSHDetailModal()">
                     <span class="text">Close Ledger</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    <div id="exchange-rate-modal" class="invoice-modal">
+        <div class="invoice-modal-content" style="max-width: 400px;">
+            <button class="close-modal" onclick="document.getElementById('exchange-rate-modal').style.display='none'">×</button>
+            <div class="invoice-header">
+                <h2>Set Exchange Rate</h2>
+                <p>Enter the ratio to convert AED to Rs</p>
+            </div>
+            <div class="invoice-form">
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="number" id="rate-aed-input" value="1" required>
+                        <span>AED Amount</span><i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="number" id="rate-rs-input" value="75" required>
+                        <span>Rs Amount</span><i></i>
+                    </div>
+                </div>
+                <p style="font-size: 0.8em; color: var(--text-secondary); margin-bottom: 20px; text-align: center;">
+                    Formula: 1 AED = (Rs / AED) Rs
+                </p>
+                <button class="bubbles btn-success" onclick="saveExchangeRate()">
+                    <span class="text">Update Conversion</span>
                 </button>
             </div>
         </div>
