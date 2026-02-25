@@ -1626,13 +1626,12 @@ th, td {
                                 <th>User ID</th>
                                 <th>Username</th>
                                 <th>Role</th>
-                                <th>Working Hours</th>
                                 <th>Earnings</th>
                                 <th>Status</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
-                    </table>
+                    </table>s
                 </div>
             </div>
             <!-- Assign Target Section -->
@@ -1744,37 +1743,85 @@ th, td {
                     </div>
                 </div>
                 
-                <!-- Filter Options -->
-                <div class="filter-options" style="margin-bottom: 20px;">
-                    <label><strong>Filter by:</strong></label>
-                    <button class="bubbles btn-small nav-btn active" onclick="filterAdminInvoices('all')">
-                        <span class="text">All Invoices</span>
-                    </button>
-                    <button class="bubbles btn-small nav-btn" onclick="filterAdminInvoices('unpaid')">
-                        <span class="text">Not Paid</span>
-                    </button>
-                    <button class="bubbles btn-small nav-btn" onclick="filterAdminInvoices('paid')">
-                        <span class="text">Paid</span>
-                    </button>
+                <div class="nav-menu" style="margin-bottom: 20px;">
+                    <button class="nav-btn active" onclick="showInvoiceSubSection('active', this)">Active Invoices</button>
+                    <button class="nav-btn" onclick="showInvoiceSubSection('closed', this)">Closed Invoices</button>
+                    <button class="nav-btn" onclick="showInvoiceSubSection('changed-driver', this)">Changed Driver</button>
                 </div>
-                
-                <div class="table-container">
-                    <table id="admin-invoices-table">
-                        <thead>
-                            <tr>
-                                <th>Date Confirmed</th>
-                                <th>Passenger Name</th>
-                                <th>Driver Payment</th>
-                                <th>Passenger Payment</th>
-                                <th>Driver Status</th>
-                                <th>Passenger Status</th>
-                                <th>Due Date</th>
-                                <th>Invoice Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
+
+                <div id="inv-sub-active" class="invoice-main-subpart" style="display: block;">
+                    <div class="filter-options" style="margin-bottom: 20px;">
+                        <label><strong>Filter by:</strong></label>
+                        <button class="bubbles btn-small nav-btn active" onclick="filterAdminInvoices('all')">
+                            <span class="text">All Invoices</span>
+                        </button>
+                        <button class="bubbles btn-small nav-btn" onclick="filterAdminInvoices('unpaid')">
+                            <span class="text">Not Paid</span>
+                        </button>
+                        <button class="bubbles btn-small nav-btn" onclick="filterAdminInvoices('paid')">
+                            <span class="text">Paid</span>
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table id="admin-invoices-table">
+                            <thead>
+                                <tr>
+                                    <th>Date Confirmed</th>
+                                    <th>Passenger Name</th>
+                                    <th>Driver Payment</th>
+                                    <th>Passenger Payment</th>
+                                    <th>Driver Status</th>
+                                    <th>Passenger Status</th>
+                                    <th>Due Date</th>
+                                    <th>Invoice Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="inv-sub-closed" class="invoice-main-subpart" style="display: none;">
+                    <div class="table-container">
+                        <table id="admin-closed-invoices-table">
+                            <thead>
+                                <tr>
+                                    <th>Date Confirmed</th>
+                                    <th>Passenger Name</th>
+                                    <th>Driver Payment</th>
+                                    <th>Passenger Payment</th>
+                                    <th>Driver Status</th>
+                                    <th>Passenger Status</th>
+                                    <th>Due Date</th>
+                                    <th>Invoice Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="inv-sub-changed-driver" class="invoice-main-subpart" style="display: none;">
+                    <div class="table-container">
+                        <table id="admin-changed-driver-invoices-table">
+                            <thead>
+                                <tr>
+                                    <th>Date Confirmed</th>
+                                    <th>Passenger Name</th>
+                                    <th>Driver Payment</th>
+                                    <th>Passenger Payment</th>
+                                    <th>Driver Status</th>
+                                    <th>Passenger Status</th>
+                                    <th>Due Date</th>
+                                    <th>Invoice Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 <div id="admin-attendance" class="section">
@@ -3168,6 +3215,8 @@ th, td {
             </div>
         </div>
     </div>
+    <!-- pdf file download-->
+     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <!-- Add EmailJS SDK -->
     <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script type="module">
@@ -3308,7 +3357,9 @@ th, td {
           if (typeof renderFinanceSection === "function") renderFinanceSection();
       });
     </script>
+    
     <script>
+        
         // EmailJS Configuration
         const EMAILJS_CONFIG = {
             SERVICE_ID: 'service_e2cnmer',
@@ -4874,64 +4925,7 @@ function deleteExpense(expenseId) {
 }
 
 // Update the showAdminSection function to handle new sections
-function showAdminSection(section) {
-    // Remove active class from all nav buttons
-    document.querySelectorAll('#admin-dashboard .nav-btn').forEach(btn => btn.classList.remove('active'));
-    // Add active class to clicked button
-    event.target.classList.add('active');
-    
-    // Hide all sections
-    document.querySelectorAll('#admin-dashboard .section').forEach(sec => sec.classList.remove('active'));
-    
-    // Show selected section
-    if (section === 'dashboard') {
-        document.getElementById('admin-dashboard-section').classList.add('active');
-        renderAdminDashboardSection();
-    } else {
-        document.getElementById(`admin-${section}`).classList.add('active');
-    }
-    
-    // Reset month filters to current month when switching sections
-    const currentMonth = getCurrentMonth();
-    if (section === 'profit') {
-        document.getElementById('profit-month-filter').value = currentMonth;
-        currentProfitMonth = currentMonth;
-    } else if (section === 'expenses') {
-        document.getElementById('expense-month-filter').value = currentMonth;
-        currentExpenseMonth = currentMonth;
-    }
-    
-    // Render section-specific content
-    switch(section) {
-        case 'dashboard':
-            renderAdminDashboardSection();
-            break;
-        case 'employees':
-            renderEmployeesTable();
-            break;
-        case 'targets':
-            renderAdminTargetsTable();
-            break;
-        case 'profiles':
-            renderAdminProfilesTable();
-            break;
-        case 'cancelled':
-            renderAdminCancelledTable();
-            break;
-        case 'invoices':
-            renderAdminInvoicesTable();
-            break;
-        case 'finance':
-            renderFinanceSection();
-            break;
-        case 'profit':
-            renderProfitSection();
-            break;
-        case 'expenses':
-            renderExpensesSection();
-            break;
-    }
-}
+
 
 // Add month filter event listeners (add this to your initializeMonthFilters function)
 function initializeMonthFilters() {
@@ -5955,76 +5949,7 @@ function logout() {
 }
 
         // Navigation Functions
-function showAdminSection(section) {
-    // Remove active class from all nav buttons
-    document.querySelectorAll('#admin-dashboard .nav-btn').forEach(btn => btn.classList.remove('active'));
-    // Add active class to clicked button
-    event.target.classList.add('active');
-    
-    // Hide all sections
-    document.querySelectorAll('#admin-dashboard .section').forEach(sec => sec.classList.remove('active'));
-    
-    // Show selected section
-    if (section === 'dashboard') {
-        document.getElementById('admin-dashboard-section').classList.add('active');
-        renderAdminDashboardSection();
-    } else {
-        document.getElementById(`admin-${section}`).classList.add('active');
-    }
-    
-    // Reset month filters to current month when switching sections
-    const currentMonth = getCurrentMonth();
-    if (section === 'dashboard') {
-        document.getElementById('dashboard-month-filter').value = currentMonth;
-        currentDashboardMonth = currentMonth;
-    } else if (section === 'profiles') {
-        document.getElementById('profiles-month-filter').value = currentMonth;
-        currentProfilesMonth = currentMonth;
-    } else if (section === 'cancelled') {
-        document.getElementById('cancelled-month-filter').value = currentMonth;
-        currentCancelledMonth = currentMonth;
-    } else if (section === 'invoices') {
-        document.getElementById('invoices-month-filter').value = currentMonth;
-        currentInvoicesMonth = currentMonth;
-    } else if (section === 'finance') {
-        document.getElementById('finance-month-filter').value = currentMonth;
-        currentFinanceMonth = currentMonth;
-    }
-    
-    // Render section-specific content
-    switch(section) {
-        case 'dashboard':
-            renderAdminDashboardSection();
-            break;
-        case 'employees':
-            renderEmployeesTable();
-            break;
-        case 'targets':
-            renderAdminTargetsTable();
-            break;
-        case 'profiles':
-            renderAdminProfilesTable();
-            break;
-        case 'cancelled':
-            renderAdminCancelledTable();
-            break;
-        case 'invoices':
-            renderAdminInvoicesTable();
-            break;
-        case 'finance':
-            renderFinanceSection();
-            break;
-        case 'attendence':
-            if (!document.getElementById('attendance-date-filter').value) {
-                document.getElementById('attendance-date-filter').value = new Date().toISOString().split('T')[0];
-            }
-            renderAttendanceSection();
-            break;  
-            case 'split':
-                        renderAdminSplitTable();
-                        break;          
-    }
-}
+
 
 // Target Assignment Functions
 let currentEmployeeFilter = 'all';
@@ -6422,13 +6347,7 @@ function populatePassengerAgentDropdown() {
             }, 1000);
         }
 
-        // Dashboard Rendering Functions
-                function renderAdminDashboard() {
-            renderAdminDashboardSection(); // This will render the dashboard table
-            renderAdminInvoicesTable();
-            renderEmployeesTable();
-            renderFinanceSection();
-        }
+
 
         function renderAdminDashboard() {
     const tbody = document.querySelector('#admin-dashboard-table tbody');
@@ -6522,7 +6441,6 @@ function renderEmployeesTable() {
             <td>${user.fullname || user.username}</td> 
             <td>${user.username}</td>
             <td>${user.role.charAt(0).toUpperCase() + user.role.slice(1)}</td>
-            <td>${workingHours.toFixed(1)} hours</td>
             <td>AED ${earnings.toFixed(2)}</td>
             <td>
                 <span class="status-badge ${isOnline ? 'status-paid' : 'status-unpaid'}">
@@ -6838,14 +6756,22 @@ function editProfile(profileId) {
         
         currentEditingProfileId = profileId;
         
-        // Populate the edit modal
+        // Show Profile ID
         document.getElementById('edit-profile-id').textContent = `Profile #${profile.id}`;
-        document.getElementById('edit-total-budget').value = profile.totalBudget;
-        document.getElementById('edit-service-charges').value = profile.serviceCharges;
         
-        // ADD THIS LINE: Populate the note
-        document.getElementById('edit-profile-note').value = profile.note || "";
+        // Set dynamic placeholders so the admin knows the current values
+        document.getElementById('edit-passenger-name').placeholder = `Current: ${profile.passengerName || 'N/A'}`;
+        document.getElementById('edit-passenger-phone').placeholder = `Current: ${profile.passengerPhone || 'N/A'}`;
+        document.getElementById('edit-passenger-nationality').placeholder = `Current: ${profile.passengerNationality || 'N/A'}`;
+        document.getElementById('edit-profile-note').placeholder = `Current: ${profile.note || 'None'}`;
+        document.getElementById('edit-pickup-location').placeholder = `Current link exists...`;
+        document.getElementById('edit-dropoff-location').placeholder = `Current link exists...`;
+        document.getElementById('edit-route-link').placeholder = `Current link exists...`;
         
+        document.getElementById('edit-total-budget').placeholder = `Current: AED ${profile.totalBudget}`;
+        document.getElementById('edit-service-charges').placeholder = `Current: AED ${profile.serviceCharges}`;
+        document.getElementById('edit-driver-charges').placeholder = `Current: AED ${profile.driverCharges || 0}`;
+
         calculateEditBudget();
         document.getElementById('edit-budget-modal').style.display = 'block';
         hideLoader();
@@ -6856,113 +6782,176 @@ function closeEditBudgetModal() {
     document.getElementById('edit-budget-modal').style.display = 'none';
     currentEditingProfileId = null;
     
-    // Clear form
-    document.getElementById('edit-total-budget').value = '';
-    document.getElementById('edit-service-charges').value = '';
+    // Clear all forms
+    const inputs = [
+        'edit-passenger-name', 'edit-passenger-phone', 'edit-passenger-nationality', 
+        'edit-profile-note', 'edit-pickup-time', 'edit-dropoff-time', 
+        'edit-pickup-location', 'edit-dropoff-location', 'edit-route-link',
+        'edit-total-budget', 'edit-service-charges', 'edit-driver-charges'
+    ];
+    inputs.forEach(id => document.getElementById(id).value = '');
+    
     document.getElementById('edit-calculated-results').style.display = 'none';
 }
 
 function calculateEditBudget() {
-    const totalBudget = parseFloat(document.getElementById('edit-total-budget').value);
-    const serviceCharges = parseFloat(document.getElementById('edit-service-charges').value);
-    
-    if (isNaN(totalBudget) || isNaN(serviceCharges)) {
-        document.getElementById('edit-calculated-results').style.display = 'none';
-        return;
-    }
-    
-    if (totalBudget <= serviceCharges) {
-        document.getElementById('edit-calculated-results').style.display = 'none';
-        return;
-    }
-    
-    const transportAmount = totalBudget - serviceCharges;
-    
-    // Get the profile to calculate daily budget
     const profile = invoices.find(inv => inv.id === currentEditingProfileId);
-    if (profile) {
-        const monthlyDays = profile.monthlyDays || (profile.daysPerWeek * 4);
-        const dailyBudget = transportAmount / monthlyDays;
-        
-        document.getElementById('edit-transport-amount-result').textContent = transportAmount.toFixed(2);
-        document.getElementById('edit-daily-budget-result').textContent = dailyBudget.toFixed(2);
-        document.getElementById('edit-calculated-results').style.display = 'block';
-    }
+    if (!profile) return;
+
+    const budgetStr = document.getElementById('edit-total-budget').value;
+    const serviceStr = document.getElementById('edit-service-charges').value;
+    const driverStr = document.getElementById('edit-driver-charges').value;
+    
+    // If left blank, use the old values
+    const finalTotalBudget = budgetStr !== '' ? parseFloat(budgetStr) : profile.totalBudget;
+    const finalServiceCharges = serviceStr !== '' ? parseFloat(serviceStr) : profile.serviceCharges;
+    const finalDriverCharges = driverStr !== '' ? parseFloat(driverStr) : (profile.driverCharges || 0);
+    
+    const transportAmount = finalTotalBudget - finalServiceCharges - finalDriverCharges;
+    
+    const monthlyDays = profile.monthlyDays || (profile.daysPerWeek * 4);
+    const dailyBudget = monthlyDays > 0 ? transportAmount / monthlyDays : 0;
+    
+    document.getElementById('edit-transport-amount-result').textContent = transportAmount.toFixed(2);
+    document.getElementById('edit-daily-budget-result').textContent = dailyBudget.toFixed(2);
+    document.getElementById('edit-calculated-results').style.display = 'block';
 }
+
 function updateBudget() {
-    showLoader();
     setTimeout(() => {
         if (!currentEditingProfileId) { hideLoader(); return; }
 
         const profile = invoices.find(inv => inv.id === currentEditingProfileId);
-        const oldBudget = profile.totalBudget;
 
-        const newTotalBudget = parseFloat(document.getElementById('edit-total-budget').value);
-        const newServiceCharges = parseFloat(document.getElementById('edit-service-charges').value);
-        
-        // ADD THIS LINE: Get new note value
-        const newNote = document.getElementById('edit-profile-note').value.trim();
+        // Fetch strings from inputs
+        const nameVal = document.getElementById('edit-passenger-name').value.trim();
+        const phoneVal = document.getElementById('edit-passenger-phone').value.trim();
+        const nationalityVal = document.getElementById('edit-passenger-nationality').value.trim();
+        const noteVal = document.getElementById('edit-profile-note').value.trim();
+        const pickupTimeVal = document.getElementById('edit-pickup-time').value;
+        const dropoffTimeVal = document.getElementById('edit-dropoff-time').value;
+        const pickupLocVal = document.getElementById('edit-pickup-location').value.trim();
+        const dropoffLocVal = document.getElementById('edit-dropoff-location').value.trim();
+        const routeLocVal = document.getElementById('edit-route-link').value.trim();
 
-        if (isNaN(newTotalBudget) || isNaN(newServiceCharges)) {
-            showNotification('Invalid values', 'error'); hideLoader(); return;
+        const budgetStr = document.getElementById('edit-total-budget').value;
+        const serviceStr = document.getElementById('edit-service-charges').value;
+        const driverStr = document.getElementById('edit-driver-charges').value;
+
+        // Keep old value if the input is left blank
+        const finalName = nameVal !== '' ? nameVal : profile.passengerName;
+        const finalPhone = phoneVal !== '' ? phoneVal : profile.passengerPhone;
+        const finalNationality = nationalityVal !== '' ? nationalityVal : profile.passengerNationality;
+        const finalNote = noteVal !== '' ? noteVal : profile.note;
+        const finalPickupTime = pickupTimeVal !== '' ? pickupTimeVal : profile.pickupTime;
+        const finalDropoffTime = dropoffTimeVal !== '' ? dropoffTimeVal : profile.dropoffTime;
+        const finalPickupLoc = pickupLocVal !== '' ? pickupLocVal : profile.pickupLocation;
+        const finalDropoffLoc = dropoffLocVal !== '' ? dropoffLocVal : profile.dropoffLocation;
+        const finalRouteLoc = routeLocVal !== '' ? routeLocVal : profile.routeLink;
+
+        const finalTotalBudget = budgetStr !== '' ? parseFloat(budgetStr) : profile.totalBudget;
+        const finalServiceCharges = serviceStr !== '' ? parseFloat(serviceStr) : profile.serviceCharges;
+        const finalDriverCharges = driverStr !== '' ? parseFloat(driverStr) : (profile.driverCharges || 0);
+
+        if (isNaN(finalTotalBudget) || isNaN(finalServiceCharges) || isNaN(finalDriverCharges)) {
+            showNotification('Invalid numeric values', 'error'); 
+            return;
         }
 
-        const transportAmount = newTotalBudget - newServiceCharges;
+        // Recalculate
+        const transportAmount = finalTotalBudget - finalServiceCharges - finalDriverCharges;
         const monthlyDays = profile.monthlyDays || (profile.daysPerWeek * 4);
         const dailyBudget = transportAmount / monthlyDays;
 
         // SAVE TO DATABASE
         if (window.updateDoc && window.db) {
             window.updateDoc(window.doc(window.db, "invoices", profile.id), {
-                totalBudget: newTotalBudget,
-                serviceCharges: newServiceCharges,
+                passengerName: finalName,
+                passengerPhone: finalPhone,
+                passengerNationality: finalNationality,
+                note: finalNote,
+                pickupTime: finalPickupTime,
+                dropoffTime: finalDropoffTime,
+                pickupLocation: finalPickupLoc,
+                dropoffLocation: finalDropoffLoc,
+                routeLink: finalRouteLoc,
+                totalBudget: finalTotalBudget,
+                serviceCharges: finalServiceCharges,
+                driverCharges: finalDriverCharges,
                 transportAmount: transportAmount,
-                dailyBudget: dailyBudget,
-                note: newNote // ADD THIS LINE: Save note to Firebase
+                dailyBudget: dailyBudget
             });
 
-            // Notification logic...
-            const notifMessage = `Admin updated profile for ${profile.passengerName}. New budget: AED ${newTotalBudget.toFixed(2)}. Note: ${newNote}`;
+            // Update local object immediately to reflect in UI without hard refresh
+            profile.passengerName = finalName;
+            profile.passengerPhone = finalPhone;
+            profile.passengerNationality = finalNationality;
+            profile.note = finalNote;
+            profile.pickupTime = finalPickupTime;
+            profile.dropoffTime = finalDropoffTime;
+            profile.pickupLocation = finalPickupLoc;
+            profile.dropoffLocation = finalDropoffLoc;
+            profile.routeLink = finalRouteLoc;
+            profile.totalBudget = finalTotalBudget;
+            profile.serviceCharges = finalServiceCharges;
+            profile.driverCharges = finalDriverCharges;
+            profile.transportAmount = transportAmount;
+            profile.dailyBudget = dailyBudget;
+
+            // Notification logic
+            const notifMessage = `Admin updated profile for ${finalName}. Budget: AED ${finalTotalBudget.toFixed(2)}.`;
             if (profile.passengerId) window.sendSystemNotification(profile.passengerId, notifMessage);
             if (profile.driverId) window.sendSystemNotification(profile.driverId, notifMessage);
         }
 
-        closeEditBudgetModal();
+        // Refresh currently viewed table
+        refreshAllTables();
         showNotification('Profile updated successfully', 'success');
-        hideLoader();
+        closeEditBudgetModal();
     }, 1000);
 }
 
 function refreshAllTables() {
-    // Refresh admin tables if admin dashboard is active
-    if (document.getElementById('admin-dashboard').classList.contains('active')) {
-        renderAdminDashboardSection();
-        renderAdminProfilesTable();
-        renderAdminCancelledTable();
-        renderAdminInvoicesTable();
-        renderFinanceSection();
-        renderAdminTargetsTable(); // Ensure targets table refreshes
-        renderEmployeesTable();    // Ensure employees table refreshes
-    }
-    
-    // Refresh passenger tables if passenger dashboard is active
-    if (document.getElementById('passenger-dashboard').classList.contains('active')) {
-        renderPassengerDashboardSection();
-        renderPassengerProfilesTable();
-        updatePassengerStats();
-        renderPassengerTargetsTable(); // Ensure targets refresh
-        renderMonthlyGrossSection();   // Ensure monthly gross refreshes
-    }
-    
-    // Refresh driver tables if driver dashboard is active
-    if (document.getElementById('driver-dashboard').classList.contains('active')) {
-        renderDriverDashboardSection();
-        renderDriverInvoicesTable();
-        renderDriverEarnings();
-        renderDriverTargetsTable(); // New: Updates the targets table
-        renderDriverMonthlyGross(); // New: Updates the monthly gross section
-        renderDriversTable();       // Ensure drivers list refreshes
-        updateDriverStats();        // Ensure top stats refresh
+    try {
+        // Refresh admin tables if admin dashboard is active
+        if (document.getElementById('admin-dashboard') && document.getElementById('admin-dashboard').classList.contains('active')) {
+            renderAdminDashboardSection();
+            renderAdminProfilesTable();
+            renderAdminCancelledTable();
+            renderAdminInvoicesTable();
+            
+            // FIX: Safely call the new finance UI functions instead of the obsolete one
+            try { renderFinanceOverview(); } catch(e){}
+            try { renderProfitSection(); } catch(e){}
+            try { renderExpensesSection(); } catch(e){}
+            try { renderSalarySection(); } catch(e){}
+            
+            renderAdminTargetsTable(); // Ensure targets table refreshes
+            renderEmployeesTable();    // Ensure employees table refreshes
+        }
+        
+        // Refresh passenger tables if passenger dashboard is active
+        if (document.getElementById('passenger-dashboard') && document.getElementById('passenger-dashboard').classList.contains('active')) {
+            renderPassengerDashboardSection();
+            renderPassengerProfilesTable();
+            updatePassengerStats();
+            renderPassengerTargetsTable(); // Ensure targets refresh
+            renderMonthlyGrossSection();   // Ensure monthly gross refreshes
+        }
+        
+        // Refresh driver tables if driver dashboard is active
+        if (document.getElementById('driver-dashboard') && document.getElementById('driver-dashboard').classList.contains('active')) {
+            renderDriverDashboardSection();
+            renderDriverInvoicesTable();
+            renderDriverEarnings();
+            renderDriverTargetsTable(); // New: Updates the targets table
+            renderDriverMonthlyGross(); // New: Updates the monthly gross section
+            renderDriversTable();       // Ensure drivers list refreshes
+            updateDriverStats();        // Ensure top stats refresh
+        }
+    } catch (error) {
+        // PREVENTS FREEZING: Catch any rendering errors so the rest of the script (closing modals, notifications) still runs!
+        console.warn("Caught an error while refreshing tables:", error);
     }
 }
 function renderAdminInvoicesTable() {
@@ -6970,24 +6959,25 @@ function renderAdminInvoicesTable() {
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    // Filter profiles that are confirmed pickups
-    const confirmedInvoices = invoices.filter(inv => inv.pickupStatus === 'pickup confirmed');
+    // Filter profiles that are confirmed pickups AND active (not closed/changed)
+    const confirmedInvoices = invoices.filter(inv => 
+        inv.pickupStatus === 'pickup confirmed' && 
+        (!inv.invoiceState || inv.invoiceState === 'active')
+    );
     let filteredInvoices = sortInvoicesByDate(confirmedInvoices);
     
     if (filteredInvoices.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px;">No confirmed invoices found</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px;">No active confirmed invoices found</td></tr>`;
         return;
     }
 
     filteredInvoices.forEach(invoice => {
-        // Calculate Due Date (2 days after confirmation date)
         const baseDate = invoice.confirmedDate || invoice.date; 
         const confDate = new Date(baseDate);
         const dueDateObj = new Date(confDate);
         dueDateObj.setDate(confDate.getDate() + 2);
         const dueDateStr = dueDateObj.toISOString().split('T')[0];
 
-        // Logic for remaining amounts and colors
         const dRem = (invoice.driverCharges || 0) - (invoice.driverAmountPaid || 0);
         const pRem = (invoice.serviceCharges || 0) - (invoice.passengerAmountPaid || 0);
         
@@ -7045,10 +7035,198 @@ function renderAdminInvoicesTable() {
 
             <td>
                 <button class="bubbles btn-small" onclick="viewInvoiceDetails('${invoice.id}')"><span class="text">View</span></button>
+                <button class="bubbles btn-small btn-danger" style="margin-top: 5px;" onclick="openCloseProfileModal('${invoice.id}')"><span class="text">Close Profile</span></button>
+                <button class="bubbles btn-small btn-success" style="margin-top: 5px;" onclick="downloadInvoicePDF('${invoice.id}')"><span class="text">PDF</span></button>
             </td>
         `;
         tbody.appendChild(row);
     });
+    initializeAdminTableChoiceBoxes();
+}
+// --- NEW INVOICE SUB-SECTION LOGIC ---
+
+window.showInvoiceSubSection = function(subSection, btn) {
+    document.querySelectorAll('#admin-invoices .nav-btn').forEach(b => b.classList.remove('active'));
+    if(btn) btn.classList.add('active');
+    
+    document.querySelectorAll('.invoice-main-subpart').forEach(p => p.style.display = 'none');
+    document.getElementById('inv-sub-' + subSection).style.display = 'block';
+
+    if(subSection === 'active') renderAdminInvoicesTable();
+    if(subSection === 'closed') renderClosedInvoicesTable();
+    if(subSection === 'changed-driver') renderChangedDriverTable();
+};
+
+window.openCloseProfileModal = function(invoiceId) {
+    document.getElementById('close-profile-target-id').value = invoiceId;
+    document.getElementById('close-profile-modal').style.display = 'block';
+};
+
+window.confirmCloseProfile = async function(side) {
+    const invId = document.getElementById('close-profile-target-id').value;
+    if (!invId) return;
+
+    const newState = side === 'passenger' ? 'closed_passenger' : 'changed_driver';
+
+    if (window.updateDoc && window.db) {
+        showLoader();
+        await window.updateDoc(window.doc(window.db, "invoices", invId), {
+            invoiceState: newState
+        });
+        showNotification(`Profile moved to ${side === 'passenger' ? 'Closed Invoices' : 'Changed Driver'}`, "success");
+        document.getElementById('close-profile-modal').style.display = 'none';
+        
+        // Refresh tables immediately
+        renderAdminInvoicesTable();
+        renderClosedInvoicesTable();
+        renderChangedDriverTable();
+        hideLoader();
+    }
+};
+
+window.promptNewDriver = async function(invId) {
+    const newDriverName = prompt("Enter the name of the new driver:");
+    if (newDriverName && newDriverName.trim() !== "") {
+        if (window.updateDoc && window.db) {
+            showLoader();
+            await window.updateDoc(window.doc(window.db, "invoices", invId), {
+                newAssignedDriver: newDriverName.trim()
+            });
+            showNotification("New driver added successfully", "success");
+            renderChangedDriverTable();
+            hideLoader();
+        }
+    }
+};
+
+// Render function for Closed Invoices
+function renderClosedInvoicesTable() {
+    const tbody = document.querySelector('#admin-closed-invoices-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    const closedInvoices = invoices.filter(inv => inv.invoiceState === 'closed_passenger');
+    let filteredInvoices = sortInvoicesByDate(closedInvoices);
+    
+    if (filteredInvoices.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px;">No closed invoices found</td></tr>`;
+        return;
+    }
+
+    // Identical HTML generation as active, but without "Close Profile" button
+    filteredInvoices.forEach(invoice => {
+        const baseDate = invoice.confirmedDate || invoice.date; 
+        const dRem = (invoice.driverCharges || 0) - (invoice.driverAmountPaid || 0);
+        const pRem = (invoice.serviceCharges || 0) - (invoice.passengerAmountPaid || 0);
+        const dueDateObj = new Date(new Date(baseDate).setDate(new Date(baseDate).getDate() + 2));
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td style="color: var(--accent);">${baseDate}</td>
+            <td>${invoice.passengerName || 'N/A'}</td>
+            <td style="color: ${dRem <= 0 ? 'var(--status-paid)' : 'var(--status-unpaid)'}; font-weight: bold;">AED ${dRem.toFixed(2)}</td>
+            <td style="color: ${pRem <= 0 ? 'var(--status-paid)' : 'var(--status-unpaid)'}; font-weight: bold;">AED ${pRem.toFixed(2)}</td>
+            <td>${invoice.driverPayStatus || 'Not Yet'}</td>
+            <td>${invoice.passengerPayStatus || 'Not Yet'}</td>
+            <td style="color: var(--status-unassigned);">${dueDateObj.toISOString().split('T')[0]}</td>
+            <td><span style="color: ${getInvStatusColor(invoice.mainStatus)}">${invoice.mainStatus || 'Draft'}</span></td>
+            <td>
+                <button class="bubbles btn-small" onclick="viewInvoiceDetails('${invoice.id}')"><span class="text">View</span></button>
+                <button class="bubbles btn-small btn-success" style="margin-top: 5px;" onclick="downloadInvoicePDF('${invoice.id}')"><span class="text">PDF</span></button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+// Render function for Changed Driver Invoices
+// Render function for Changed Driver Invoices
+function renderChangedDriverTable() {
+    const tbody = document.querySelector('#admin-changed-driver-invoices-table tbody');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    
+    const changedInvoices = invoices.filter(inv => inv.invoiceState === 'changed_driver');
+    let filteredInvoices = sortInvoicesByDate(changedInvoices);
+    
+    if (filteredInvoices.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px;">No changed driver profiles found</td></tr>`;
+        return;
+    }
+
+    filteredInvoices.forEach(invoice => {
+        const baseDate = invoice.confirmedDate || invoice.date; 
+        const confDate = new Date(baseDate);
+        const dueDateObj = new Date(confDate);
+        dueDateObj.setDate(confDate.getDate() + 2);
+        const dueDateStr = dueDateObj.toISOString().split('T')[0];
+
+        const dRem = (invoice.driverCharges || 0) - (invoice.driverAmountPaid || 0);
+        const pRem = (invoice.serviceCharges || 0) - (invoice.passengerAmountPaid || 0);
+        
+        const dColor = dRem <= 0 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+        const pColor = pRem <= 0 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td style="color: var(--accent);">${baseDate}</td>
+            <td>${invoice.passengerName || 'N/A'}</td>
+            <td style="color: ${dColor}; font-weight: bold;">AED ${dRem.toFixed(2)}</td>
+            <td style="color: ${pColor}; font-weight: bold;">AED ${pRem.toFixed(2)}</td>
+            
+            <td>
+                <div class="table-choice-container" id="driver-pay-status-container-${invoice.id}">
+                    <div class="table-choice-box" id="driver-pay-choice-${invoice.id}">
+                        <span>${invoice.driverPayStatus || 'Not Yet'}</span><span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'driver', 'paid')">Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'driver', 'partially paid')">Partially Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'driver', 'not yet')">Not Yet</div>
+                    </div>
+                </div>
+            </td>
+
+            <td>
+                <div class="table-choice-container" id="pass-pay-status-container-${invoice.id}">
+                    <div class="table-choice-box" id="pass-pay-choice-${invoice.id}">
+                        <span>${invoice.passengerPayStatus || 'Not Yet'}</span><span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'passenger', 'paid')">Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'passenger', 'partially paid')">Partially Paid</div>
+                        <div class="table-choice-option" onclick="handleInvoicePayment('${invoice.id}', 'passenger', 'not yet')">Not Yet</div>
+                    </div>
+                </div>
+            </td>
+
+            <td style="color: var(--status-unassigned);">${dueDateStr}</td>
+
+            <td>
+                <div class="table-choice-container">
+                    <div class="table-choice-box" style="border-color: ${getInvStatusColor(invoice.mainStatus)}">
+                        <span style="color: ${getInvStatusColor(invoice.mainStatus)}">${invoice.mainStatus || 'Draft'}</span><span>▼</span>
+                    </div>
+                    <div class="table-choice-options">
+                        <div class="table-choice-option" style="color: #a020f0;" onclick="updateMainInvStatus('${invoice.id}', 'sent')">Sent</div>
+                        <div class="table-choice-option" style="color: #00ff8c;" onclick="updateMainInvStatus('${invoice.id}', 'paid')">Paid</div>
+                        <div class="table-choice-option" style="color: #ff0057;" onclick="updateMainInvStatus('${invoice.id}', 'closed')">Closed</div>
+                        <div class="table-choice-option" style="color: #ffcc00;" onclick="updateMainInvStatus('${invoice.id}', 'draft')">Draft</div>
+                    </div>
+                </div>
+            </td>
+
+            <td>
+                <button class="bubbles btn-small" onclick="viewInvoiceDetails('${invoice.id}')"><span class="text">View</span></button>
+                <button class="bubbles btn-small btn-success" style="margin-top: 5px;" onclick="promptNewDriver('${invoice.id}')"><span class="text">Add New Driver</span></button>
+                <button class="bubbles btn-small btn-secondary" style="margin-top: 5px;" onclick="downloadInvoicePDF('${invoice.id}')"><span class="text">PDF</span></button>
+                ${invoice.newAssignedDriver ? `<div style="margin-top: 8px; font-size: 0.9em; font-weight: bold; color: var(--accent);">New Driver:<br/>${invoice.newAssignedDriver}</div>` : ''}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Re-initialize the dropdowns so they are clickable!
     initializeAdminTableChoiceBoxes();
 }
 // Helper for Main Status Colors
@@ -8677,7 +8855,6 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('driver-charges').addEventListener('input', calculateTransportAmount);
 });
 function calculateAndCreateInvoice() {
-    showLoader();
     
     setTimeout(() => {
         // Get all form values
@@ -9519,7 +9696,137 @@ function unassignDriverFromProfile(profileId) {
         function closeInvoiceModal() {
             document.getElementById('invoice-modal').style.display = 'none';
         }
+window.downloadInvoicePDF = function(invoiceId) {
+const invoice = invoices.find(inv => inv.id === invoiceId);
+if (!invoice) {
+showNotification('Invoice not found', 'error');
+return;
+}
 
+// URL of your horizontal header logo
+const headerLogoUrl = 'https://i.ibb.co/QVw6MND/raventa-holds-logo.png';
+
+// Dynamic Data
+const dateObj = new Date(invoice.date || new Date());
+const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+const totalAmount = parseFloat(invoice.totalBudget || invoice.amount || 0).toFixed(2);
+
+const element = document.createElement('div');
+element.innerHTML = `
+<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px;">
+    <div style="flex: 1;">
+        <div
+            style="font-size: 36px; color: #3482B5; font-weight: normal; margin-bottom: 5px; font-family: 'Segoe UI', Arial, sans-serif;">
+            TAX INVOICE</div>
+        <div style="font-size: 14px; color: #666; margin-bottom: 20px;">Invoice# INV-${invoice.id.substring(0,
+            6).toUpperCase()}</div>
+
+        <div style="margin-top: 20px;">
+            <div style="font-size: 13px; font-weight: bold; color: #666;">Balance Due</div>
+            <div style="font-size: 18px; font-weight: bold; color: #000;">AED${totalAmount}</div>
+        </div>
+    </div>
+    <div style="flex: 1; text-align: right;">
+        <div style="background-color: #000; padding: 10px; display: inline-block; margin-bottom: 15px;">
+            <img src="${headerLogoUrl}" crossorigin="anonymous" style="height: 100px; width: auto; display: block;">
+        </div>
+        <div style="font-size: 14px; color: #000; font-weight: bold;">Rapid Global Carlift</div>
+        <div style="font-size: 13px; color: #666; line-height: 1.5;">
+            Kalba industrial<br>
+            Sharjah Umm al-Quwain<br>
+            United Arab Emirates<br>
+            rapidglobalcarlift.rgc@gmail.com
+        </div>
+    </div>
+</div>
+
+<div style="display: flex; justify-content: space-between; margin-bottom: 40px; font-size: 14px;">
+    <div style="flex: 1;">
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 4px 0; color: #666; width: 120px;">Invoice Date :</td>
+                <td style="padding: 4px 0; font-weight: normal; color: #000;">${formattedDate}</td>
+            </tr>
+            <tr>
+                <td style="padding: 4px 0; color: #666;">Terms :</td>
+                <td style="padding: 4px 0; font-weight: normal; color: #000;">Due on Receipt</td>
+            </tr>
+            <tr>
+                <td style="padding: 4px 0; color: #666;">Due Date :</td>
+                <td style="padding: 4px 0; font-weight: normal; color: #000;">${formattedDate}</td>
+            </tr>
+        </table>
+    </div>
+    <div style="flex: 1; text-align: right; padding-top: 40px;">
+        <div style="color: #666; margin-bottom: 5px;">Bill To</div>
+        <div style="font-weight: bold; font-size: 16px; color: #000;">${invoice.passengerName || 'N/A'}</div>
+    </div>
+</div>
+
+<table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px;">
+    <thead>
+        <tr style="background-color: #3482B5; color: #ffffff;">
+            <th
+                style="padding: 10px; text-align: left; font-weight: normal; border-right: 1px solid rgba(255,255,255,0.2);">
+                #</th>
+            <th
+                style="padding: 10px; text-align: left; font-weight: normal; border-right: 1px solid rgba(255,255,255,0.2);">
+                Item & Description</th>
+            <th
+                style="padding: 10px; text-align: center; font-weight: normal; border-right: 1px solid rgba(255,255,255,0.2);">
+                Qty</th>
+            <th
+                style="padding: 10px; text-align: right; font-weight: normal; border-right: 1px solid rgba(255,255,255,0.2);">
+                Rate</th>
+            <th style="padding: 10px; text-align: right; font-weight: normal;">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr style="border-bottom: 1px solid #eee;">
+            <td style="padding: 15px 10px; text-align: left; color: #333;">1</td>
+            <td style="padding: 15px 10px; text-align: left; color: #333;">Ride fee</td>
+            <td style="padding: 15px 10px; text-align: center; color: #333;">1.00</td>
+            <td style="padding: 15px 10px; text-align: right; color: #333;">${totalAmount}</td>
+            <td style="padding: 15px 10px; text-align: right; color: #333;">${totalAmount}</td>
+        </tr>
+    </tbody>
+</table>
+
+<div style="display: flex; justify-content: flex-end; margin-bottom: 40px;">
+    <div style="width: 250px;">
+        <div style="display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; color: #000;">
+            <div style="font-weight: bold;">Sub Total</div>
+            <div>${totalAmount}</div>
+        </div>
+        <div
+            style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 15px; border-top: 1px solid #ddd; margin-top: 5px; color: #000;">
+            <div style="font-weight: bold;">Total</div>
+            <div style="font-weight: bold;">AED${totalAmount}</div>
+        </div>
+        <div
+            style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 15px; margin-top: 5px; color: #000;">
+            <div style="font-weight: bold;">Balance Due</div>
+            <div style="font-weight: bold;">AED${totalAmount}</div>
+        </div>
+    </div>
+</div>
+
+<div style="margin-top: 50px;">
+    <div style="color: #666; font-size: 14px; margin-bottom: 5px;">Notes</div>
+    <div style="font-size: 13px; color: #333;">Thanks for your business.</div>
+</div>
+`;
+
+const opt = {
+margin: 0.5,
+filename: 'Invoice_' + invoice.id + '.pdf',
+image: { type: 'jpeg', quality: 0.98 },
+html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+};
+
+html2pdf().set(opt).from(element).save();
+};
         // Filter and Sort Functions
         // Admin Invoice Filtering
         function filterAdminInvoices(filterType) {
@@ -9756,6 +10063,11 @@ window.dismissCenterNotifications = function() {
     window.closeSHDetailModal = closeSHDetailModal;
     window.addNewDriver = addNewDriver;
     window.deleteDriver = deleteDriver;
+    window.showInvoiceSubSection = showInvoiceSubSection;
+    window.openCloseProfileModal = openCloseProfileModal;
+    window.confirmCloseProfile = confirmCloseProfile;
+    window.promptNewDriver = promptNewDriver;
+    window.downloadInvoicePDF = downloadInvoicePDF;
     window.openRegisterModal = openRegisterModal;
     window.closeRegisterModal = closeRegisterModal;
     window.saveRegisterValue = saveRegisterValue;   
@@ -9764,28 +10076,80 @@ window.dismissCenterNotifications = function() {
     </script>
     <!-- Edit Budget Modal -->
     <div id="edit-budget-modal" class="invoice-modal">
-        <div class="invoice-modal-content" style="max-width: 500px;">
+        <div class="invoice-modal-content" style="max-width: 700px;">
             <button class="close-modal" onclick="closeEditBudgetModal()">×</button>
             <div class="invoice-header">
-                <h2>Edit Profile Details</h2> <p id="edit-profile-id">Profile #</p>
+                <h2>Edit Profile Details</h2> 
+                <p id="edit-profile-id">Profile #</p>
+                <p style="color: var(--status-unassigned); font-size: 0.85em;">Leave any field blank to keep its previous value.</p>
             </div>
             
             <div class="invoice-form">
-                <div class="inputbox">
-                    <input type="number" id="edit-total-budget" step="0.01" required="required">
-                    <span>Total Budget (AED)</span>
-                    <i></i>
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="text" id="edit-passenger-name" placeholder="Leave blank to keep current">
+                        <span>Passenger Name</span><i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="tel" id="edit-passenger-phone" placeholder="Leave blank to keep current">
+                        <span>Phone Number</span><i></i>
+                    </div>
                 </div>
-                <div class="inputbox">
-                    <input type="number" id="edit-service-charges" step="0.01" required="required">
-                    <span>Service Charges (AED)</span>
-                    <i></i>
+
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="text" id="edit-passenger-nationality" placeholder="Leave blank to keep current">
+                        <span>Nationality</span><i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="text" id="edit-profile-note" placeholder="Leave blank to keep current">
+                        <span>Detail Note (Specifics)</span><i></i>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="time" id="edit-pickup-time">
+                        <span style="transform: translateX(-10px) translateY(-34px); font-size: 0.75em; color: var(--accent);">Pickup Time (Optional)</span><i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="time" id="edit-dropoff-time">
+                        <span style="transform: translateX(-10px) translateY(-34px); font-size: 0.75em; color: var(--accent);">Dropoff Time (Optional)</span><i></i>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="url" id="edit-pickup-location" placeholder="Leave blank to keep current">
+                        <span>Pickup Location Link</span><i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="url" id="edit-dropoff-location" placeholder="Leave blank to keep current">
+                        <span>Dropoff Location Link</span><i></i>
+                    </div>
                 </div>
                 
                 <div class="inputbox">
-                    <input type="text" id="edit-profile-note" required="required">
-                    <span>Detail Note (Specifics)</span>
-                    <i></i>
+                    <input type="url" id="edit-route-link" placeholder="Leave blank to keep current">
+                    <span>Whole Route Link</span><i></i>
+                </div>
+
+                <h4 style="color: var(--accent); margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">Financials</h4>
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="number" id="edit-total-budget" step="0.01" placeholder="Leave blank to keep current" onkeyup="calculateEditBudget()" onchange="calculateEditBudget()">
+                        <span>Total Budget (AED)</span><i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="number" id="edit-service-charges" step="0.01" placeholder="Leave blank to keep current" onkeyup="calculateEditBudget()" onchange="calculateEditBudget()">
+                        <span>Service Charges (AED)</span><i></i>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="inputbox">
+                        <input type="number" id="edit-driver-charges" step="0.01" placeholder="Leave blank to keep current" onkeyup="calculateEditBudget()" onchange="calculateEditBudget()">
+                        <span>Driver Charges (AED)</span><i></i>
+                    </div>
                 </div>
                 
                 <div id="edit-calculated-results" style="background: rgba(26, 29, 37, 0.8); padding: 15px; border-radius: 8px; margin: 15px 0; display: none;">
@@ -9990,6 +10354,24 @@ window.dismissCenterNotifications = function() {
                     <span class="text">Update Conversion</span>
                 </button>
             </div>
+        </div>
+    </div>
+    <div id="close-profile-modal" class="invoice-modal">
+        <div class="invoice-modal-content" style="max-width: 400px; text-align: center;">
+            <button class="close-modal" onclick="document.getElementById('close-profile-modal').style.display='none'">×</button>
+            <div class="invoice-header">
+                <h2>Close Profile</h2>
+                <p>Which side are you closing this profile for?</p>
+            </div>
+            <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px;">
+                <button class="bubbles btn-secondary" onclick="confirmCloseProfile('passenger')">
+                    <span class="text">Passenger Side</span>
+                </button>
+                <button class="bubbles btn-secondary" onclick="confirmCloseProfile('driver')">
+                    <span class="text">Driver Side</span>
+                </button>
+            </div>
+            <input type="hidden" id="close-profile-target-id" />
         </div>
     </div>
 </body>
