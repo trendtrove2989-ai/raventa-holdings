@@ -2775,6 +2775,35 @@ th, td {
                         <i></i>
                     </div>
 
+                    <div style="margin-bottom: 20px;">
+                        <button type="button" class="bubbles btn-small btn-secondary" onclick="document.getElementById('extra-route-container').style.display='block'; this.style.display='none';">
+                            <span class="text">+ Add Extra Route</span>
+                        </button>
+                    </div>
+
+                    <div id="extra-route-container" style="display: none; background: rgba(255, 255, 255, 0.05); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--accent);">
+                        <h4 style="color: var(--accent); margin-bottom: 15px;">Extra Route Details</h4>
+                        <div class="inputbox">
+                            <input type="url" id="extra-route-link">
+                            <span>Extra Route Link</span>
+                            <i></i>
+                        </div>
+                        <div class="form-row">
+                            <div class="inputbox">
+                                <input type="number" id="extra-route-amount" step="0.01">
+                                <span>Route Amount (Display Only - AED)</span>
+                                <i></i>
+                            </div>
+                            <div class="inputbox">
+                                <input type="text" id="extra-route-desc">
+                                <span>Route Description</span>
+                                <i></i>
+                            </div>
+                        </div>
+                        <button type="button" class="bubbles btn-small btn-danger" onclick="document.getElementById('extra-route-container').style.display='none'; document.getElementById('extra-route-link').value=''; document.getElementById('extra-route-amount').value=''; document.getElementById('extra-route-desc').value=''; document.querySelector('button[onclick*=\\'extra-route-container\\']').style.display='inline-block';">
+                            <span class="text">Remove Extra Route</span>
+                        </button>
+                    </div>
                     <div class="inputbox">
                         <input type="text" id="profile-note" required="required">
                         <span>Detail Note (Day to Day / Specifics)</span>
@@ -3211,6 +3240,15 @@ th, td {
                     <p><strong>Complete Route:</strong> 
                         <a href="#" id="modal-route-link" target="_blank" class="social-link maps btn-small">View Route</a>
                     </p>
+                    
+                    <div id="modal-extra-route-container" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.2);">
+                        <h5 style="color: var(--accent); margin-bottom: 10px;">Additional Route Details</h5>
+                        <p><strong>Extra Amount:</strong> AED <span id="modal-extra-route-amount">0.00</span></p>
+                        <p><strong>Description:</strong> <span id="modal-extra-route-desc">N/A</span></p>
+                        <p><strong>Extra Route Link:</strong> 
+                            <a href="#" id="modal-extra-route-link" target="_blank" class="social-link maps btn-small">View Extra Route</a>
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -5483,86 +5521,110 @@ choiceOptions.forEach(option => {
             initializeAdminTableChoiceBoxes();
         }
 
-        // FIXED: Initialize admin table choice boxes with proper event handling
-// FIXED: Initialize admin table choice boxes with proper event handling
-function initializeAdminTableChoiceBoxes() {
-    // Handle table choice box clicks
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.table-choice-box')) {
-            const choiceBox = e.target.closest('.table-choice-box');
-            const container = choiceBox.closest('.table-choice-container');
-            
-            // Close all other dropdowns
-            document.querySelectorAll('.table-choice-container').forEach(c => {
-                if (c !== container) {
-                    c.classList.remove('active');
-                }
-            });
-            
-            // Toggle current dropdown
-            container.classList.toggle('active');
-            
-            // Position dropdown properly
-            const options = container.querySelector('.table-choice-options');
-            if (options && container.classList.contains('active')) {
-                const rect = choiceBox.getBoundingClientRect();
-                options.style.left = rect.left + 'px';
-                options.style.top = (rect.bottom + 2) + 'px';
-                options.style.width = rect.width + 'px';
-            }
-            
-            e.stopPropagation();
-        }
-        
-        // Handle table choice option clicks
-        if (e.target.closest('.table-choice-option')) {
-            const option = e.target.closest('.table-choice-option');
-            const container = option.closest('.table-choice-container');
-            const choiceBox = container.querySelector('.table-choice-box');
-            const value = option.getAttribute('data-value');
-            const text = option.textContent;
-            
-            // Update choice box text
-            choiceBox.querySelector('span:first-child').textContent = text;
-            
-            // Add selected class for color fill
-            choiceBox.classList.add('selected');
-            
-            // Close dropdown
-            container.classList.remove('active');
-            
-            // Call the appropriate function based on the container ID
-            const containerId = container.id;
-            
-            if (containerId.includes('driver-agent')) {
-                const profileId = containerId.replace('driver-agent-container-', '');
-                assignDriverAgent(profileId, value);
-            } else if (containerId.includes('pickup-status')) {
-                const profileId = containerId.replace('pickup-status-container-', '');
-                updatePickupStatus(profileId, value);
-            } else if (containerId.includes('payment-status')) {
-                const invoiceId = containerId.replace('payment-status-container-', '');
-                updatePaymentStatus(invoiceId, value);
-            } else if (containerId.includes('service-charges-status')) {
-                const invoiceId = containerId.replace('service-charges-status-container-', '');
-                updateServiceChargesStatus(invoiceId, value);
-            }
-            else if (containerId.includes('salary-status')) {
-                const employeeId = containerId.replace('salary-status-container-', '');
-                updateSalaryStatus(employeeId, value);
-            }
-            
-            e.stopPropagation();
-        }
-        
-        // Close dropdowns when clicking outside
-        if (!e.target.closest('.table-choice-container')) {
-            document.querySelectorAll('.table-choice-container').forEach(container => {
-                container.classList.remove('active');
-            });
-        }
-    });
-}
+       // FIXED: Initialize admin table choice boxes with proper event handling
+       let adminChoiceBoxesInitialized = false; // <-- NEW FLAG ADDED HERE
+       
+       function initializeAdminTableChoiceBoxes() {
+           // Prevent adding multiple listeners which causes the double-toggle bug
+           if (adminChoiceBoxesInitialized) return;
+           adminChoiceBoxesInitialized = true;
+       
+           // Handle table choice box clicks
+           document.addEventListener('click', function(e) {
+               if (e.target.closest('.table-choice-box')) {
+                   const choiceBox = e.target.closest('.table-choice-box');
+                   const container = choiceBox.closest('.table-choice-container');
+                   
+                   // Close all other dropdowns
+                   document.querySelectorAll('.table-choice-container').forEach(c => {
+                       if (c !== container) {
+                           c.classList.remove('active');
+                       }
+                   });
+                   
+                   // Toggle current dropdown
+                   container.classList.toggle('active');
+                   
+                   // Position dropdown properly and check for screen bounds
+                   const options = container.querySelector('.table-choice-options');
+                   if (options && container.classList.contains('active')) {
+                       const rect = choiceBox.getBoundingClientRect();
+                       options.style.left = rect.left + 'px';
+                       options.style.width = rect.width + 'px';
+                       
+                       // Temporarily reset bottom to calculate accurate height
+                       options.style.bottom = 'auto';
+                       
+                       // Get the height of the options menu (fallback to max-height 200)
+                       const optionsHeight = options.offsetHeight || 200;
+                       
+                       // Calculate available space below the button
+                       const spaceBelow = window.innerHeight - rect.bottom;
+                       
+                       // If space below is less than required AND there is more space above
+                       if (spaceBelow < optionsHeight && rect.top > spaceBelow) {
+                           // Open UPWARDS
+                           options.style.top = 'auto';
+                           options.style.bottom = (window.innerHeight - rect.top + 2) + 'px';
+                       } else {
+                           // Open DOWNWARDS
+                           options.style.top = (rect.bottom + 2) + 'px';
+                           options.style.bottom = 'auto';
+                       }
+                   }
+                   
+                   e.stopPropagation();
+               }
+               
+               // Handle table choice option clicks
+               if (e.target.closest('.table-choice-option')) {
+                   const option = e.target.closest('.table-choice-option');
+                   const container = option.closest('.table-choice-container');
+                   const choiceBox = container.querySelector('.table-choice-box');
+                   const value = option.getAttribute('data-value');
+                   const text = option.textContent;
+                   
+                   // Update choice box text
+                   choiceBox.querySelector('span:first-child').textContent = text;
+                   
+                   // Add selected class for color fill
+                   choiceBox.classList.add('selected');
+                   
+                   // Close dropdown
+                   container.classList.remove('active');
+                   
+                   // Call the appropriate function based on the container ID
+                   const containerId = container.id;
+                   
+                   if (containerId.includes('driver-agent')) {
+                       const profileId = containerId.replace('driver-agent-container-', '');
+                       assignDriverAgent(profileId, value);
+                   } else if (containerId.includes('pickup-status')) {
+                       const profileId = containerId.replace('pickup-status-container-', '');
+                       updatePickupStatus(profileId, value);
+                   } else if (containerId.includes('payment-status')) {
+                       const invoiceId = containerId.replace('payment-status-container-', '');
+                       updatePaymentStatus(invoiceId, value);
+                   } else if (containerId.includes('service-charges-status')) {
+                       const invoiceId = containerId.replace('service-charges-status-container-', '');
+                       updateServiceChargesStatus(invoiceId, value);
+                   }
+                   else if (containerId.includes('salary-status')) {
+                       const employeeId = containerId.replace('salary-status-container-', '');
+                       updateSalaryStatus(employeeId, value);
+                   }
+                   
+                   e.stopPropagation();
+               }
+               
+               // Close dropdowns when clicking outside
+               if (!e.target.closest('.table-choice-container')) {
+                   document.querySelectorAll('.table-choice-container').forEach(container => {
+                       container.classList.remove('active');
+                   });
+               }
+           });
+       }
 
 // Fix dropdown positioning for dashboard
 function fixDropdownPositioning() {
@@ -5581,13 +5643,26 @@ function fixDropdownPositioning() {
                 
                 container.classList.toggle('active');
                 
-                // Position the dropdown properly
+                // Position dropdown properly and check for screen bounds
                 const options = container.querySelector('.table-choice-options');
                 if (options && container.classList.contains('active')) {
                     const rect = choiceBox.getBoundingClientRect();
                     options.style.left = rect.left + 'px';
-                    options.style.top = (rect.bottom + 2) + 'px';
                     options.style.width = rect.width + 'px';
+                    
+                    options.style.bottom = 'auto';
+                    const optionsHeight = options.offsetHeight || 200;
+                    const spaceBelow = window.innerHeight - rect.bottom;
+                    
+                    if (spaceBelow < optionsHeight && rect.top > spaceBelow) {
+                        // Open UPWARDS
+                        options.style.top = 'auto';
+                        options.style.bottom = (window.innerHeight - rect.top + 2) + 'px';
+                    } else {
+                        // Open DOWNWARDS
+                        options.style.top = (rect.bottom + 2) + 'px';
+                        options.style.bottom = 'auto';
+                    }
                 }
             }
             e.stopPropagation();
@@ -6738,6 +6813,17 @@ function updatePickupStatus(profileId, newStatus) {
     if (window.updateDoc && window.db) {
         window.updateDoc(window.doc(window.db, "invoices", profileId), updates);
         showNotification(`Status updated to ${newStatus}`, 'success');
+        
+        // --- NEW NOTIFICATION MODIFICATION START ---
+        if (profile.passengerId) { // Check if the profile has a creator ID
+            const heading = `New status of profile: ${newStatus.toUpperCase()}`;
+            const text = `your profile of ${profile.passengerName || 'Unknown'} is now in ${newStatus} status`;
+            const notificationMessage = `<strong style="color: var(--accent); font-size: 1.1em;">${heading}</strong><br><span style="color: var(--text-main);">${text}</span>`;
+            
+            // Send the notification to the creator
+            window.sendSystemNotification(profile.passengerId, notificationMessage);
+        }
+        // --- NEW NOTIFICATION MODIFICATION END ---
     }
 }
 
@@ -7302,9 +7388,20 @@ window.handleInvoicePayment = async function(invId, userType, newStatus) {
 };
 
 window.updateMainInvStatus = async function(invId, status) {
+    const invoice = invoices.find(inv => inv.id === invId);
     if (window.updateDoc && window.db) {
         await window.updateDoc(window.doc(window.db, "invoices", invId), { mainStatus: status });
         showNotification("Invoice Status Updated", "success");
+        
+        // --- NEW NOTIFICATION MODIFICATION START ---
+        if (invoice && invoice.passengerId) {
+            const heading = `New status of profile: ${status.toUpperCase()}`;
+            const text = `your profile of ${invoice.passengerName || 'Unknown'} is now in ${status} status`;
+            const notificationMessage = `<strong style="color: var(--accent); font-size: 1.1em;">${heading}</strong><br><span style="color: var(--text-main);">${text}</span>`;
+            
+            window.sendSystemNotification(invoice.passengerId, notificationMessage);
+        }
+        // --- NEW NOTIFICATION MODIFICATION END ---
     }
 };
         // FIXED: Payment status function with proper updates
@@ -8872,7 +8969,9 @@ function calculateAndCreateInvoice() {
         const dropoffLocation = document.getElementById('dropoff-location').value.trim();
         const routeLink = document.getElementById('route-link').value.trim();
         const profileNote = document.getElementById('profile-note').value.trim(); // Get the note
-
+        const extraRouteLink = document.getElementById('extra-route-link').value.trim();
+        const extraRouteAmount = document.getElementById('extra-route-amount').value.trim();
+        const extraRouteDesc = document.getElementById('extra-route-desc').value.trim();
         // Get selected values directly from the choice boxes
         const daysPerWeekText = document.getElementById('days-per-week-choice').querySelector('span:first-child').textContent;
         const rideWayText = document.getElementById('ride-way-profile-choice').querySelector('span:first-child').textContent;
@@ -8953,6 +9052,9 @@ function calculateAndCreateInvoice() {
             dropoffLocation: dropoffLocation,
             routeLink: routeLink,
             note: profileNote, // Save the note
+            extraRouteLink: extraRouteLink,
+            extraRouteAmount: extraRouteAmount ? parseFloat(extraRouteAmount) : 0,
+            extraRouteDesc: extraRouteDesc,
             serviceChargesPaid: false,
             driverId: null,
             driverAgent: null,
@@ -8983,7 +9085,8 @@ function calculateAndCreateInvoice() {
                 element.value = '';
             }
         });
-        
+        document.getElementById('extra-route-container').style.display = 'none';
+        document.querySelector('button[onclick*=\'extra-route-container\']').style.display = 'inline-block';
         // Reset choice boxes
         document.getElementById('days-per-week-choice').querySelector('span:first-child').textContent = 'Select Days per Week';
         document.getElementById('passenger-agent-choice').querySelector('span:first-child').textContent = 'Select Passenger Agent';
@@ -9688,7 +9791,16 @@ function unassignDriverFromProfile(profileId) {
             pickupLink.href = invoice.pickupLocation || '#';
             dropoffLink.href = invoice.dropoffLocation || '#';
             routeLink.href = invoice.routeLink || '#';
-
+            // Populate Extra Route if it exists
+            const extraRouteContainer = document.getElementById('modal-extra-route-container');
+            if (invoice.extraRouteLink || invoice.extraRouteAmount || invoice.extraRouteDesc) {
+                extraRouteContainer.style.display = 'block';
+                document.getElementById('modal-extra-route-amount').textContent = (invoice.extraRouteAmount || 0).toFixed(2);
+                document.getElementById('modal-extra-route-desc').textContent = invoice.extraRouteDesc || 'N/A';
+                document.getElementById('modal-extra-route-link').href = invoice.extraRouteLink || '#';
+            } else {
+                extraRouteContainer.style.display = 'none';
+            }
             // Show modal
             document.getElementById('invoice-modal').style.display = 'block';
         }
