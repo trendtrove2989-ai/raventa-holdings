@@ -3596,15 +3596,9 @@ window.renderAdminDashboardSection = function() {
                 <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
                 <td>AED ${profile.totalBudget.toFixed(2)}</td>
                 <td>
-                    <div class="table-choice-container" id="dash-driver-container-${profile.id}">
-                        <div class="table-choice-box ${profile.driverId ? 'selected' : ''}">
-                            <span>${profile.driverAgent || 'Not Assigned'}</span>
-                            <span>▼</span>
-                        </div>
-                        <div class="table-choice-options">
-                            ${availableDrivers.map(d => `<div class="table-choice-option" data-value="${d.id}">${d.fullname || d.username}</div>`).join('')}
-                        </div>
-                    </div>
+                    <span class="status-badge ${profile.driverId ? 'status-assigned' : 'status-unassigned'}">
+                        ${profile.driverAgent || 'Not Assigned'}
+                    </span>
                 </td>
                 <td>
                     <span class="status-badge ${getPickupStatusClass(profile.pickupStatus)}">
@@ -6625,17 +6619,11 @@ function renderAdminDashboardSection() {
             const passenger = window.users.find(u => u.id === profile.passengerId);
             
             const driverAssignmentHTML = `
-                <div class="table-choice-container" id="dash-driver-container-${profile.id}">
-                    <div class="table-choice-box ${profile.driverId ? 'selected' : ''}" id="dash-driver-choice-${profile.id}">
-                        <span>${profile.driverAgent || 'Not Assigned'}</span>
-                        <span>▼</span>
-                    </div>
-                    <div class="table-choice-options">
-                    ${availableDrivers.map(driver => 
-                        `<div class="table-choice-option" data-value="${driver.id}">${driver.fullname || driver.username}</div>`
-                    ).join('')}
-                    </div>
-                </div>
+                <td>
+                    <span class="status-badge ${profile.driverId ? 'status-assigned' : 'status-unassigned'}">
+                        ${profile.driverAgent || 'Not Assigned'}
+                    </span>
+                </td>
             `;
 
             const row = document.createElement('tr');
