@@ -4115,15 +4115,20 @@ function calculateEmployeeSalary(employeeId) {
     const potentialBonus = parseFloat(reg.bonusAmt) || 0;
 
     // 2. Calculate Achievement for the month
-    const userTargets = employee.targets || [];
-    const monthlyTargets = userTargets.filter(t => 
-        (t.assignedDate && t.assignedDate.startsWith(currentMonthStr))
-    );
-
     let performanceRate = 0;
-    if (monthlyTargets.length > 0) {
-        const totalTargetGoal = monthlyTargets.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
-        const totalAchievedSoFar = monthlyTargets.reduce((sum, t) => sum + (parseFloat(t.achievedAmount) || 0), 0);
+    
+    if (employee.role === 'passenger') {
+        const userTargets = employee.targets || [];
+        const monthlyTargets = userTargets.filter(t => (t.assignedDate && t.assignedDate.startsWith(currentMonthStr)));
+        if (monthlyTargets.length > 0) {
+            const totalTargetGoal = monthlyTargets.reduce((sum, t) => sum + (parseInt(t.amount) || 0), 0);
+            const totalAchievedSoFar = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonthStr)).length;
+            if (totalTargetGoal > 0) performanceRate = (totalAchievedSoFar / totalTargetGoal);
+        }
+    } else if (employee.role === 'driver') {
+        const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
+        const totalTargetGoal = driverInvoices.length;
+        const totalAchievedSoFar = driverInvoices.filter(inv => inv.pickupStatus === 'pickup confirmed' || inv.paymentStatus === 'paid').length;
         if (totalTargetGoal > 0) performanceRate = (totalAchievedSoFar / totalTargetGoal);
     }
 
@@ -4173,8 +4178,16 @@ function calculateAchievementRate(employeeId) {
     
     if (monthlyTargets.length === 0) return 0;
     
-    const totalTarget = monthlyTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
-    const totalAchieved = monthlyTargets.reduce((sum, target) => sum + (parseFloat(target.achievedAmount) || 0), 0);
+    const totalTarget = monthlyTargets.reduce((sum, target) => sum + (parseInt(target.amount) || 0), 0);
+    
+    let totalAchieved = 0;
+    if (employee.role === 'passenger') {
+        // Count dynamic profiles for passenger
+        totalAchieved = invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonth)).length;
+    } else {
+        // Fallback for driver
+        totalAchieved = monthlyTargets.reduce((sum, target) => sum + (parseFloat(target.achievedAmount) || 0), 0);
+    }
     
     return totalTarget > 0 ? (totalAchieved / totalTarget) * 100 : 0;
 }
@@ -4699,73 +4712,50 @@ function updateEmployeeMonthlyGross(employeeId) {
     }
 }        
 function renderDriverMonthlyGross() {
-    // Get current month and year
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    if (!currentUser) return;
     
-    // Get ALL driver's assigned profiles for counting
-    const allDriverProfiles = invoices.filter(inv => inv.driverId === currentUser.id);
+    const currentMonthStr = getCurrentMonth();
     
-    // Calculate metrics based on status - COUNT ALL PROFILES
-    const assignedProfiles = allDriverProfiles.length;
-    const bookedProfiles = allDriverProfiles.filter(inv => inv.pickupStatus === 'pickup confirmed').length;
-    const pickedProfiles = allDriverProfiles.filter(inv => inv.paymentStatus === 'paid').length;
+    // Get ALL driver's assigned profiles for THIS month
+    const monthDriverProfiles = invoices.filter(inv => inv.driverId === currentUser.id && inv.date.startsWith(currentMonthStr));
     
-    // Calculate success rate based on ALL assigned profiles
-    const successRate = assignedProfiles > 0 ? (pickedProfiles / assignedProfiles) * 100 : 0;
+    // Target is total assigned this month
+    const assignedProfiles = monthDriverProfiles.length;
     
-    // FIXED: Calculate achievement from ACTUAL EARNINGS - NOW SHOWING 15% OF DRIVER CHARGES
-    const paidInvoices = allDriverProfiles.filter(inv => inv.paymentStatus === 'paid');
+    // Achieved is those that are booked/confirmed
+    const pickedProfiles = monthDriverProfiles.filter(inv => inv.pickupStatus === 'pickup confirmed' || inv.paymentStatus === 'paid').length;
     
-    // Calculate total achievement - SHOW 15% OF DRIVER CHARGES
-    const totalAchievement = paidInvoices.reduce((sum, invoice) => {
-        const driverCharges = invoice.driverCharges || 0;
-        return sum + (driverCharges * 0.15); // Only 15% of driver charges
-    }, 0);
+    // Calculate achievement rate
+    const achievementRate = assignedProfiles > 0 ? (pickedProfiles / assignedProfiles) * 100 : 0;
     
-    // Get target amount
-    const userTargets = currentUser.targets || [];
-    const activeTargets = userTargets.filter(target => target.status === 'Active');
-    const assignedAmount = activeTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
-    
-    // Set targets - use assigned target if available, otherwise default
-    const monthlyTarget = assignedAmount > 0 ? assignedAmount : 500;
-    
-    // Calculate achievement rate based on achievement vs target
-    const achievementRate = monthlyTarget > 0 ? (totalAchievement / monthlyTarget) * 100 : 0;
-    
-    // Update the stats cards - NOW SHOWING 15% OF DRIVER CHARGES
-    document.getElementById('driver-monthly-target').textContent = `AED    ${monthlyTarget.toFixed(2)}`;
-    document.getElementById('driver-monthly-achievement').textContent = `AED    ${totalAchievement.toFixed(2)}`;
+    // Update the stats cards
+    document.getElementById('driver-monthly-target').textContent = `${assignedProfiles} Profiles`;
+    document.getElementById('driver-monthly-achievement').textContent = `${pickedProfiles} Profiles`;
     document.getElementById('driver-assigned-profiles').textContent = assignedProfiles;
-    document.getElementById('driver-booked-profiles').textContent = bookedProfiles;
+    document.getElementById('driver-booked-profiles').textContent = monthDriverProfiles.filter(inv => inv.pickupStatus === 'booked' || inv.pickupStatus === 'working').length;
     document.getElementById('driver-picked-profiles').textContent = pickedProfiles;
     document.getElementById('driver-achievement-rate').textContent = `${achievementRate.toFixed(1)}%`;
     
     // Update progress bar
     const progressPercent = Math.min(achievementRate, 100);
-    const progressBar = document.getElementById('driver-progress-bar');
-    const progressText = document.getElementById('driver-progress-text');
-    const targetAmount = document.getElementById('driver-target-amount');
+    const progressBar = document.getElementById('progress-bar');
+    const barColor = progressPercent >= 70 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+    const textColor = progressPercent >= 70 ? '#000000' : '#ffffff';
     
     if (progressBar) {
         progressBar.style.width = `${progressPercent}%`;
+        progressBar.style.background = barColor;
+        progressBar.style.color = textColor;
         progressBar.textContent = `${progressPercent.toFixed(1)}%`;
     }
+    document.getElementById('progress-text').textContent = `${progressPercent.toFixed(1)}% Complete`;
+    document.getElementById('target-amount').textContent = `${monthlyTarget} Profiles`;
     if (progressText) {
         progressText.textContent = `${progressPercent.toFixed(1)}% Complete`;
     }
     if (targetAmount) {
-        targetAmount.textContent = monthlyTarget.toFixed(2);
+        targetAmount.textContent = `${assignedProfiles} Profiles`;
     }
-    
-    console.log('Driver Monthly Gross - 15% Calculation:', {
-        totalAchievement: totalAchievement,
-        monthlyTarget: monthlyTarget,
-        achievementRate: achievementRate,
-        paidInvoicesCount: paidInvoices.length
-    });
 }
 // Add to your existing variables
 window.expenses = [];
@@ -5371,30 +5361,33 @@ function renderMonthlyGrossSection() {
     // ADD TARGET CALCULATION HERE
     const userTargets = currentUser.targets || [];
     const activeTargets = userTargets.filter(target => target.status === 'Active');
-    const assignedAmount = activeTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
     
-    // Set targets - use assigned target if available, otherwise default
-    const monthlyTarget = assignedAmount > 0 ? assignedAmount : 1000; // Use assigned target or default to AED    1000
+    // Total Target Profiles Assigned
+    const assignedAmount = activeTargets.reduce((sum, target) => sum + (parseInt(target.amount) || 0), 0);
     
-    const profilesTarget = 10; // 10 profiles target
+    // Set targets - use assigned target if available, otherwise default to 100 profiles
+    const monthlyTarget = assignedAmount > 0 ? assignedAmount : 100; 
     
-    // Calculate achievement rate based on ACTUAL PAID service charges only
-    const achievementRate = monthlyTarget > 0 ? (totalRevenue / monthlyTarget) * 100 : 0;
+    // Calculate achieved strictly by NUMBER OF PROFILES CREATED THIS MONTH
+    const achievedAmount = profilesCreated;
+    
+    // Calculate achievement rate based on Profiles Created vs Target Profiles
+    const achievementRate = monthlyTarget > 0 ? (achievedAmount / monthlyTarget) * 100 : 0;
     
     // Update the stats cards
-    document.getElementById('monthly-target').textContent = `AED    ${monthlyTarget.toFixed(2)}`;
-    document.getElementById('monthly-achieved').textContent = `AED    ${totalRevenue.toFixed(2)}`;
+    document.getElementById('monthly-target').textContent = `${monthlyTarget} Profiles`;
+    document.getElementById('monthly-achieved').textContent = `${achievedAmount} Profiles`;
     document.getElementById('profiles-created').textContent = profilesCreated;
     document.getElementById('profiles-booked').textContent = profilesBooked;
     document.getElementById('profiles-picked').textContent = profilesPicked;
     document.getElementById('achievement-rate').textContent = `${achievementRate.toFixed(1)}%`;
     
-    // Update progress bar - ONLY BASED ON ACTUAL EARNINGS (paid service charges)
+    // Update progress bar
     const progressPercent = Math.min(achievementRate, 100);
     document.getElementById('progress-bar').style.width = `${progressPercent}%`;
     document.getElementById('progress-bar').textContent = `${progressPercent.toFixed(1)}%`;
     document.getElementById('progress-text').textContent = `${progressPercent.toFixed(1)}% Complete`;
-    document.getElementById('target-amount').textContent = monthlyTarget.toFixed(2);
+    document.getElementById('target-amount').textContent = `${monthlyTarget} Profiles`;
     
     console.log('Passenger Monthly Gross - Fixed Calculation:', {
         totalRevenue: totalRevenue,
@@ -6055,33 +6048,54 @@ function renderAdminTargetsTable() {
         return;
     }
 
+    const currentMonthStr = getCurrentMonth();
+
     filteredEmployees.forEach(employee => {
-        const assignedTargets = employee.targets || [];
-        const activeTargets = assignedTargets.filter(target => target.status === 'Active');
-        const completedTargets = assignedTargets.filter(target => target.status === 'Completed');
+        let assignedAmount = 0;
+        let achievedAmount = 0;
+
+        if (employee.role === 'passenger') {
+            const assignedTargets = employee.targets || [];
+            const activeTargets = assignedTargets.filter(target => target.status === 'Active');
+            assignedAmount = activeTargets.reduce((sum, target) => sum + (parseInt(target.amount) || 0), 0);
+            
+            if (activeTargets.length > 0) {
+                const targetMonth = activeTargets[0].assignedDate.substr(0, 7);
+                achievedAmount = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(targetMonth)).length;
+            }
+        } else if (employee.role === 'driver') {
+            // Driver dynamic target: Total profiles assigned to them this month
+            const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
+            assignedAmount = driverInvoices.length;
+            // Achieved: Profiles that are confirmed or paid
+            achievedAmount = driverInvoices.filter(inv => inv.pickupStatus === 'pickup confirmed' || inv.paymentStatus === 'paid').length;
+        }
         
-        const assignedAmount = activeTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
-        const achievedAmount = completedTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
         const progressPercent = assignedAmount > 0 ? (achievedAmount / assignedAmount) * 100 : 0;
+        // Color Logic: Red if below 70%, Green if 70% or above
+        const barColor = progressPercent >= 70 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+        const textColor = progressPercent >= 70 ? '#000000' : '#ffffff';
         
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${employee.fullname || employee.username}</td>
             <td>${employee.role.charAt(0).toUpperCase() + employee.role.slice(1)}</td>
-            <td>AED ${assignedAmount.toFixed(2)}</td>
-            <td>AED ${achievedAmount.toFixed(2)}</td>
+            <td>${assignedAmount} Profiles</td>
+            <td>${achievedAmount} Profiles</td>
             <td>
                 <div style="background: var(--border-color); height: 20px; border-radius: 10px; overflow: hidden; position: relative;">
-                    <div style="background: linear-gradient(90deg, var(--accent), #764ba2); height: 100%; width: ${progressPercent}%; border-radius: 10px; transition: width 0.5s ease;"></div>
-                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: var(--text-main);">
+                    <div style="background: ${barColor}; height: 100%; width: ${Math.min(progressPercent, 100)}%; border-radius: 10px; transition: width 0.5s ease;"></div>
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: ${textColor};">
                         ${progressPercent.toFixed(1)}%
                     </div>
                 </div>
             </td>
             <td>
+                ${employee.role === 'passenger' ? `
                 <button class="bubbles btn-small" onclick="openAssignTargetModal('${employee.id}')">
                     <span class="text">Assign Target</span>
                 </button>
+                ` : `<span style="color: var(--text-secondary); font-size: 0.85em; font-weight: bold;">Auto-Assigned</span>`}
             </td>
         `;
         tbody.appendChild(row);
@@ -6122,33 +6136,51 @@ function searchEmployees() {
         return;
     }
 
+    const currentMonthStr = getCurrentMonth();
+
     filteredEmployees.forEach(employee => {
-        const assignedTargets = employee.targets || [];
-        const activeTargets = assignedTargets.filter(target => target.status === 'Active');
-        const completedTargets = assignedTargets.filter(target => target.status === 'Completed');
+        let assignedAmount = 0;
+        let achievedAmount = 0;
+
+        if (employee.role === 'passenger') {
+            const assignedTargets = employee.targets || [];
+            const activeTargets = assignedTargets.filter(target => target.status === 'Active');
+            assignedAmount = activeTargets.reduce((sum, target) => sum + (parseInt(target.amount) || 0), 0);
+            
+            if (activeTargets.length > 0) {
+                const targetMonth = activeTargets[0].assignedDate.substr(0, 7);
+                achievedAmount = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(targetMonth)).length;
+            }
+        } else if (employee.role === 'driver') {
+            const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
+            assignedAmount = driverInvoices.length;
+            achievedAmount = driverInvoices.filter(inv => inv.pickupStatus === 'pickup confirmed' || inv.paymentStatus === 'paid').length;
+        }
         
-        const assignedAmount = activeTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
-        const achievedAmount = completedTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
         const progressPercent = assignedAmount > 0 ? (achievedAmount / assignedAmount) * 100 : 0;
+        const barColor = progressPercent >= 70 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+        const textColor = progressPercent >= 70 ? '#000000' : '#ffffff';
         
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${employee.username}</td>
             <td>${employee.role.charAt(0).toUpperCase() + employee.role.slice(1)}</td>
-            <td>AED    ${assignedAmount.toFixed(2)}</td>
-            <td>AED    ${achievedAmount.toFixed(2)}</td>
+            <td>${assignedAmount} Profiles</td>
+            <td>${achievedAmount} Profiles</td>
             <td>
                 <div style="background: var(--border-color); height: 20px; border-radius: 10px; overflow: hidden; position: relative;">
-                    <div style="background: linear-gradient(90deg, var(--accent), #764ba2); height: 100%; width: ${progressPercent}%; border-radius: 10px; transition: width 0.5s ease;"></div>
-                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: var(--text-main);">
+                    <div style="background: ${barColor}; height: 100%; width: ${Math.min(progressPercent, 100)}%; border-radius: 10px; transition: width 0.5s ease;"></div>
+                    <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: ${textColor};">
                         ${progressPercent.toFixed(1)}%
                     </div>
                 </div>
             </td>
             <td>
+                ${employee.role === 'passenger' ? `
                 <button class="bubbles btn-small" onclick="openAssignTargetModal('${employee.id}')">
                     <span class="text">Assign Target</span>
                 </button>
+                ` : `<span style="color: var(--text-secondary); font-size: 0.85em; font-weight: bold;">Auto-Assigned</span>`}
             </td>
         `;
         tbody.appendChild(row);
@@ -6243,12 +6275,12 @@ function assignTargetToEmployee() {
 
     const newTarget = {
         id: generateId('target'),
-        amount: parseFloat(amountValue),
+        amount: parseInt(amountValue), // Saving as Number of Profiles
         deadline: deadlineValue,
         status: 'Active',
         assignedDate: getCurrentDateTime().date,
         assignedBy: currentUser.id,
-        achievedAmount: 0
+        achievedAmount: 0 // We will calculate this dynamically based on created profiles
     };
 
     // SAVE TO DATABASE
@@ -6256,7 +6288,7 @@ function assignTargetToEmployee() {
         let currentTargets = employee.targets || [];
         currentTargets.push(newTarget);
         window.updateDoc(window.doc(window.db, "users", employee.id), { targets: currentTargets });
-        window.sendSystemNotification(employee.id, `Admin assigned you a new target: AED    ${amountValue}`);
+        window.sendSystemNotification(employee.id, `Admin assigned you a new target: ${amountValue} profiles`);
     }
 
     closeAssignTargetModal();
@@ -8124,7 +8156,7 @@ function updateServiceChargesStatus(invoiceId, newStatus) {
             userTargets.forEach(target => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${target.admin}</td>
+                    <td>${target.amount} Profiles</td>
                     <td>${target.deadline}</td>
                     <td><span class="status-${target.status.toLowerCase()}">${target.status}</span></td>
                 `;
@@ -9797,166 +9829,137 @@ function unassignDriverFromProfile(profileId) {
             document.getElementById('invoice-modal').style.display = 'none';
         }
 window.downloadInvoicePDF = function(invoiceId) {
-const invoice = invoices.find(inv => inv.id === invoiceId);
-if (!invoice) {
-showNotification('Invoice not found', 'error');
-return;
-}
+    const invoice = invoices.find(inv => inv.id === invoiceId);
+    if (!invoice) {
+        showNotification('Invoice not found', 'error');
+        return;
+    }
 
-const headerLogoUrl = 'https://i.ibb.co/QVw6MND/raventa-holds-logo.png';
-const dateObj = new Date(invoice.date || new Date());
-const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-const totalAmount = parseFloat(invoice.totalBudget || invoice.amount || 0).toFixed(2);
+    // Auto-increment logic
+    const invoiceIndex = invoices.findIndex(inv => inv.id === invoiceId) + 1;
+    const invoiceNumber = "REP-" + String(invoiceIndex).padStart(7, '0');
 
-const element = document.createElement('div');
-element.style.width = '750px';
-element.style.padding = '40px';
-element.style.backgroundColor = '#ffffff';
-element.style.color = '#000';
-element.style.fontFamily = "'Segoe UI', Arial, sans-serif";
-element.style.lineHeight = '1.4';
-element.style.position = 'absolute';
-element.style.left = '-9999px';
-document.body.appendChild(element);
+    const dateObj = new Date(invoice.date || new Date());
+    const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    const totalAmount = parseFloat(invoice.totalBudget || invoice.amount || 0).toFixed(2);
 
-element.innerHTML = `
-<div style="background-color: #ffffff !important; color: #000 !important; width: 100%;">
-    <div
-        style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 30px; background-color: #ffffff !important;">
-        <div style="flex: 1; background-color: #ffffff !important;">
-            <div style="font-size: 32px; color: #000 !important; font-weight: bold; margin-bottom: 5px;">TAX INVOICE
-            </div>
-            <div style="font-size: 14px; color: #666 !important; margin-bottom: 20px;">Invoice#
-                INV-${invoice.id.substring(0, 6).toUpperCase()}</div>
-
-            <div style="margin-top: 20px; background-color: #ffffff !important;">
-                <div style="font-size: 13px; font-weight: bold; color: #666 !important;">Balance Due</div>
-                <div style="font-size: 18px; font-weight: bold; color: #000 !important;">AED${totalAmount}</div>
-            </div>
+    // Using !important on ALL backgrounds and colors to block global dark CSS
+    const invoiceHTML = `
+    <div style="padding: 40px; background-color: #ffffff !important; background: #ffffff !important; color: #000000 !important; font-family: 'Arial', sans-serif; line-height: 1.6; width: 800px; box-sizing: border-box;">
+        
+        <div style="text-align: center; border-bottom: 2px solid #000000 !important; padding-bottom: 15px; margin-bottom: 30px; background: transparent !important;">
+            <h1 style="margin: 0; font-size: 28px; color: #000000 !important; letter-spacing: 1px; background: transparent !important; -webkit-text-fill-color: #000000 !important; text-shadow: none !important;">Riventa Enterprises PVT</h1>
         </div>
-        <div style="flex: 1; text-align: right; background-color: #ffffff !important;">
-            <div style="margin-bottom: 15px; background-color: #ffffff !important;">
-                <img src="${headerLogoUrl}" crossorigin="anonymous"
-                    style="height: 100px; width: auto; display: block; margin-left: auto;">
+
+        <div style="display: flex; justify-content: space-between; margin-bottom: 40px; background: transparent !important;">
+            <div style="flex: 1; background: transparent !important;">
+                <h2 style="margin: 0; font-size: 24px; font-weight: bold; color: #000000 !important; background: transparent !important;">TAX INVOICE</h2>
+                <div style="font-size: 15px; color: #333333 !important; margin-top: 5px; background: transparent !important;">Invoice# ${invoiceNumber}</div>
+                <div style="margin-top: 30px; font-size: 16px; font-weight: bold; color: #000000 !important; background: transparent !important;">
+                    Amount due = AED ${totalAmount}
+                </div>
             </div>
-            <div style="font-size: 14px; color: #000 !important; font-weight: bold;">Rapid Global Carlift</div>
-            <div style="font-size: 13px; color: #666 !important; line-height: 1.5;">
+            
+            <div style="flex: 1; text-align: right; font-size: 14px; color: #333333 !important; background: transparent !important;">
+                <strong style="color: #000000 !important;">Riventa Enterprises PVT</strong><br>
                 Kalba industrial<br>
                 Sharjah Umm al-Quwain<br>
                 United Arab Emirates<br>
                 rapidglobalcarlift.rgc@gmail.com
             </div>
         </div>
-    </div>
 
-    <div
-        style="display: flex; justify-content: space-between; margin-bottom: 40px; font-size: 14px; background-color: #ffffff !important;">
-        <div style="flex: 1; background-color: #ffffff !important;">
-            <table style="width: 100%; border-collapse: collapse; background-color: #ffffff !important;">
-                <tr style="background-color: #ffffff !important;">
-                    <td
-                        style="padding: 4px 0; color: #666 !important; width: 120px; background-color: #ffffff !important;">
-                        Invoice Date :</td>
-                    <td style="padding: 4px 0; color: #000 !important; background-color: #ffffff !important;">
-                        ${formattedDate}</td>
+        <div style="display: flex; justify-content: space-between; margin-bottom: 40px; background: transparent !important;">
+            <div style="flex: 1; font-size: 14px; background: transparent !important;">
+                <table style="width: 100%; border-collapse: collapse !important; background: transparent !important; box-shadow: none !important; border: none !important;">
+                    <tr style="background: transparent !important; box-shadow: none !important;">
+                        <td style="padding: 4px 0; color: #555555 !important; width: 100px; background: transparent !important; border: none !important;">Invoice Date</td>
+                        <td style="padding: 4px 0; color: #000000 !important; background: transparent !important; border: none !important;">: ${formattedDate}</td>
+                    </tr>
+                    <tr style="background: transparent !important; box-shadow: none !important;">
+                        <td style="padding: 4px 0; color: #555555 !important; background: transparent !important; border: none !important;">Terms</td>
+                        <td style="padding: 4px 0; color: #000000 !important; background: transparent !important; border: none !important;">: Due on Receipt</td>
+                    </tr>
+                    <tr style="background: transparent !important; box-shadow: none !important;">
+                        <td style="padding: 4px 0; color: #555555 !important; background: transparent !important; border: none !important;">Due Date</td>
+                        <td style="padding: 4px 0; color: #000000 !important; background: transparent !important; border: none !important;">: ${formattedDate}</td>
+                    </tr>
+                </table>
+            </div>
+            <div style="flex: 1; padding-left: 40px; background: transparent !important;">
+                <div style="color: #555555 !important; font-size: 14px; margin-bottom: 5px; background: transparent !important;">Bill To</div>
+                <div style="font-weight: bold; font-size: 18px; color: #000000 !important; background: transparent !important;">
+                    ${invoice.passengerName || 'Valued Customer'}
+                </div>
+            </div>
+        </div>
+
+        <table style="width: 100%; border-collapse: collapse !important; margin-bottom: 30px; font-size: 14px; background: #ffffff !important; box-shadow: none !important;">
+            <thead style="background: #f8f9fa !important;">
+                <tr style="border-bottom: 2px solid #000000 !important; background: transparent !important;">
+                    <th style="padding: 12px 10px; text-align: left; background: transparent !important; color: #000000 !important; font-weight: bold !important;">#No</th>
+                    <th style="padding: 12px 10px; text-align: left; background: transparent !important; color: #000000 !important; font-weight: bold !important;">Item and Description</th>
+                    <th style="padding: 12px 10px; text-align: center; background: transparent !important; color: #000000 !important; font-weight: bold !important;">Qty</th>
+                    <th style="padding: 12px 10px; text-align: right; background: transparent !important; color: #000000 !important; font-weight: bold !important;">Rate</th>
+                    <th style="padding: 12px 10px; text-align: right; background: transparent !important; color: #000000 !important; font-weight: bold !important;">Amount</th>
                 </tr>
-                <tr style="background-color: #ffffff !important;">
-                    <td style="padding: 4px 0; color: #666 !important; background-color: #ffffff !important;">Terms :
+            </thead>
+            <tbody style="background: #ffffff !important;">
+                <tr style="border-bottom: 1px solid #dddddd !important; background: transparent !important; transition: none !important;">
+                    <td style="padding: 15px 10px; text-align: left; color: #000000 !important; background: transparent !important; border-bottom: 1px solid #dddddd !important;">1</td>
+                    <td style="padding: 15px 10px; text-align: left; color: #000000 !important; background: transparent !important; border-bottom: 1px solid #dddddd !important;">
+                        <strong style="color: #000000 !important;">Transportation Service</strong><br>
+                        <span style="font-size: 12px; color: #555555 !important;">Monthly Ride Coverage</span>
                     </td>
-                    <td style="padding: 4px 0; color: #000 !important; background-color: #ffffff !important;">Due on
-                        Receipt</td>
+                    <td style="padding: 15px 10px; text-align: center; color: #000000 !important; background: transparent !important; border-bottom: 1px solid #dddddd !important;">1</td>
+                    <td style="padding: 15px 10px; text-align: right; color: #000000 !important; background: transparent !important; border-bottom: 1px solid #dddddd !important;">${totalAmount}</td>
+                    <td style="padding: 15px 10px; text-align: right; color: #000000 !important; background: transparent !important; border-bottom: 1px solid #dddddd !important;">${totalAmount}</td>
                 </tr>
-                <tr style="background-color: #ffffff !important;">
-                    <td style="padding: 4px 0; color: #666 !important; background-color: #ffffff !important;">Due Date :
-                    </td>
-                    <td style="padding: 4px 0; color: #000 !important; background-color: #ffffff !important;">
-                        ${formattedDate}</td>
-                </tr>
-            </table>
-        </div>
-        <div style="flex: 1; text-align: right; padding-top: 40px; background-color: #ffffff !important;">
-            <div style="color: #666 !important; margin-bottom: 5px; background-color: #ffffff !important;">Bill To</div>
-            <div
-                style="font-weight: bold; font-size: 16px; color: #000 !important; background-color: #ffffff !important;">
-                ${invoice.passengerName || 'N/A'}</div>
-        </div>
-    </div>
+            </tbody>
+        </table>
 
-    <table
-        style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; background-color: #ffffff !important;">
-        <thead>
-            <tr style="border-bottom: 2px solid #000; color: #000 !important; background-color: #ffffff !important;">
-                <th style="padding: 10px; text-align: left; font-weight: bold; background-color: #ffffff !important;">#
-                </th>
-                <th style="padding: 10px; text-align: left; font-weight: bold; background-color: #ffffff !important;">
-                    Item & Description</th>
-                <th style="padding: 10px; text-align: center; font-weight: bold; background-color: #ffffff !important;">
-                    Qty</th>
-                <th style="padding: 10px; text-align: right; font-weight: bold; background-color: #ffffff !important;">
-                    Rate</th>
-                <th style="padding: 10px; text-align: right; font-weight: bold; background-color: #ffffff !important;">
-                    Amount</th>
-            </tr>
-        </thead>
-        <tbody style="background-color: #ffffff !important;">
-            <tr style="border-bottom: 1px solid #eee; background-color: #ffffff !important;">
-                <td
-                    style="padding: 15px 10px; text-align: left; color: #000 !important; background-color: #ffffff !important;">
-                    1</td>
-                <td
-                    style="padding: 15px 10px; text-align: left; color: #000 !important; font-weight: bold; background-color: #ffffff !important;">
-                    Ride fee</td>
-                <td
-                    style="padding: 15px 10px; text-align: center; color: #000 !important; background-color: #ffffff !important;">
-                    1.00</td>
-                <td
-                    style="padding: 15px 10px; text-align: right; color: #000 !important; background-color: #ffffff !important;">
-                    ${totalAmount}</td>
-                <td
-                    style="padding: 15px 10px; text-align: right; color: #000 !important; background-color: #ffffff !important;">
-                    ${totalAmount}</td>
-            </tr>
-        </tbody>
-    </table>
-
-    <div style="display: flex; justify-content: flex-end; margin-bottom: 40px; background-color: #ffffff !important;">
-        <div style="width: 250px; background-color: #ffffff !important;">
-            <div
-                style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 14px; color: #000 !important; border-bottom: 1px solid #eee; background-color: #ffffff !important;">
-                <div style="font-weight: bold;">Sub Total</div>
-                <div>${totalAmount}</div>
-            </div>
-            <div
-                style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 15px; border-bottom: 1px solid #eee; margin-top: 5px; color: #000 !important; background-color: #ffffff !important;">
-                <div style="font-weight: bold;">Total</div>
-                <div style="font-weight: bold;">AED${totalAmount}</div>
-            </div>
-            <div
-                style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 15px; margin-top: 5px; color: #000 !important; background-color: #ffffff !important;">
-                <div style="font-weight: bold;">Balance Due</div>
-                <div style="font-weight: bold;">AED${totalAmount}</div>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 50px; background: transparent !important;">
+            <div style="width: 300px; background: transparent !important;">
+                <div style="display: flex; justify-content: space-between; padding: 10px 10px; font-size: 14px; border-bottom: 1px solid #dddddd !important; background: transparent !important;">
+                    <div style="color: #333333 !important;">Subtotal</div>
+                    <div style="color: #000000 !important;">AED ${totalAmount}</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 10px 10px; font-size: 16px; font-weight: bold; border-bottom: 2px solid #000000 !important; background: transparent !important;">
+                    <div style="color: #000000 !important;">Total</div>
+                    <div style="color: #000000 !important;">AED ${totalAmount}</div>
+                </div>
             </div>
         </div>
+
+        <div style="margin-top: 60px; padding-top: 20px; border-top: 1px solid #dddddd !important; text-align: center; color: #555555 !important; font-size: 13px; background: transparent !important;">
+            <p style="margin: 0 0 5px 0; color: #555555 !important;"><strong style="color: #000000 !important;">Thank you for choosing Riventa Enterprises PVT!</strong></p>
+            <p style="margin: 0; color: #555555 !important;">If you have any questions regarding this invoice, please contact us at rapidglobalcarlift.rgc@gmail.com</p>
+        </div>
     </div>
+    `;
 
-    <div style="margin-top: 50px; background-color: #ffffff !important;">
-        <div style="color: #666 !important; font-size: 14px; margin-bottom: 5px;">Notes</div>
-        <div style="font-size: 13px; color: #333 !important;">Thanks for your business.</div>
-    </div>
-</div>
-`;
+    const opt = {
+        margin:       0.5,
+        filename:     'Invoice_' + invoiceNumber + '.pdf',
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            backgroundColor: '#ffffff'
+        },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
 
-const opt = {
-margin: 0.5,
-filename: 'Invoice_' + invoice.id + '.pdf',
-image: { type: 'jpeg', quality: 0.98 },
-html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
-};
+    showNotification('Generating PDF, please wait...', 'info');
 
-html2pdf().set(opt).from(element).save().then(() => {
-document.body.removeChild(element);
-});
+    setTimeout(() => {
+        html2pdf().set(opt).from(invoiceHTML).save().then(() => {
+            showNotification('PDF Downloaded successfully!', 'success');
+        }).catch(err => {
+            console.error("PDF generation error: ", err);
+            showNotification('Error generating PDF', 'error');
+        });
+    }, 500);
 };
         // Filter and Sort Functions
         // Admin Invoice Filtering
@@ -10313,7 +10316,7 @@ window.dismissCenterNotifications = function() {
                 <div class="form-row">
                     <div class="inputbox">
                         <input type="number" id="target-amount-input" step="1" required="required">
-                        <span>Target Amount (AED    )</span>
+                        <span>Target Number of Profiles</span>
                         <i></i>
                     </div>
                     <div class="inputbox">
