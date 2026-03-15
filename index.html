@@ -9836,11 +9836,11 @@ window.downloadDriverInvoicePDF = function(invoiceId) {
     // If user clicks cancel or enters nothing, stop.
     if (driverName === null || driverName.trim() === "") return; 
     
-    // Call the original PDF function but pass the driver name
-    window.downloadInvoicePDF(invoiceId, driverName.trim());
+    // Call the original PDF function, pass the driver name, and add "true" to flag it as a driver invoice
+    window.downloadInvoicePDF(invoiceId, driverName.trim(), true);
 };
 
-window.downloadInvoicePDF = function(invoiceId, customDriverName = null) {
+window.downloadInvoicePDF = function(invoiceId, customDriverName = null, isDriverInvoice = false) {
     const invoice = invoices.find(inv => inv.id === invoiceId);
     if (!invoice) {
         showNotification('Invoice not found', 'error');
@@ -9853,7 +9853,15 @@ window.downloadInvoicePDF = function(invoiceId, customDriverName = null) {
 
     const dateObj = new Date(invoice.date || new Date());
     const formattedDate = dateObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const totalAmount = parseFloat(invoice.totalBudget || invoice.amount || 0).toFixed(2);
+    
+    // Check the flag to decide which amount to display on the PDF
+    let amountToDisplay = 0;
+    if (isDriverInvoice) {
+        amountToDisplay = invoice.driverCharges || 0;
+    } else {
+        amountToDisplay = invoice.totalBudget || invoice.amount || 0;
+    }
+    const totalAmount = parseFloat(amountToDisplay).toFixed(2);
 
     // Extract Links safely
     const pickupLink = invoice.pickupLocation && invoice.pickupLocation !== '#' ? invoice.pickupLocation : '';
