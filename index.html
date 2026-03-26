@@ -9939,6 +9939,7 @@ window.proceedWithPDF = function(accountId) {
 };
 
 // ACTUAL PDF GENERATION FUNCTION
+// ACTUAL PDF GENERATION FUNCTION
 window.executePDFGeneration = function(invoiceId, customDriverName = null, isDriverInvoice = false, selectedAccount = null) {
     const invoice = invoices.find(inv => inv.id === invoiceId);
     if (!invoice) {
@@ -9956,7 +9957,6 @@ window.executePDFGeneration = function(invoiceId, customDriverName = null, isDri
     if (isDriverInvoice) {
         amountToDisplay = invoice.driverCharges || 0;
     } else {
-        // Changed this to only show the passenger service charges
         amountToDisplay = invoice.serviceCharges || 0; 
     }
     const totalAmount = parseFloat(amountToDisplay).toFixed(2);
@@ -9970,118 +9970,151 @@ window.executePDFGeneration = function(invoiceId, customDriverName = null, isDri
         billToHTML += `<br>Driver : ${customDriverName}`;
     }
 
+    // Cleaned up HTML (The wrapper handles the constraints now)
     const invoiceHTML = `
-    <div style="background-color: #f4f4f4 !important; padding: 40px 20px; display: flex; justify-content: center; font-family: Arial, Helvetica, sans-serif; width: 800px; box-sizing: border-box; color: #000000 !important;">
-        <div style="width: 100%; max-width: 700px; background-color: #ffffff !important; box-shadow: 0 4px 10px rgba(0,0,0,0.1); display: flex; flex-direction: column;">
-            
-            <header style="background-color: #062337 !important; padding: 20px 30px; display: flex; align-items: center;">
-                <img src="https://i.ibb.co/Rk7xrLmp/Untitled-design-4.png" alt="Riventa Logo Icon" style="max-height: 75px; display: block; margin-right: 15px;">
-                <div style="display: flex; flex-direction: column; line-height: 1.1;">
-                    <span style="color: #55c4d1 !important; font-size: 28px; font-weight: bold; letter-spacing: 0.5px; background-color: transparent !important;">RIVENTA</span>
-                    <span style="color: #00a8e8 !important; font-size: 28px; font-weight: bold; letter-spacing: 0.5px; background-color: transparent !important;">ENTERPRISES-PVT</span>
-                </div>
-            </header>
-            <div style="height: 12px; background-color: #d1a115 !important; width: 100%;"></div>
+    <div style="width: 100%; background-color: #ffffff !important; display: flex; flex-direction: column;">
+        <header style="background-color: #062337 !important; padding: 20px 30px; display: flex; align-items: center;">
+            <img src="https://i.ibb.co/Rk7xrLmp/Untitled-design-4.png" alt="Riventa Logo Icon" style="max-height: 75px; display: block; margin-right: 15px;">
+            <div style="display: flex; flex-direction: column; line-height: 1.1;">
+                <span style="color: #55c4d1 !important; font-size: 28px; font-weight: bold; letter-spacing: 0.5px; background-color: transparent !important;">RIVENTA</span>
+                <span style="color: #00a8e8 !important; font-size: 28px; font-weight: bold; letter-spacing: 0.5px; background-color: transparent !important;">ENTERPRISES-PVT</span>
+            </div>
+        </header>
+        <div style="height: 12px; background-color: #d1a115 !important; width: 100%;"></div>
 
-            <main style="padding: 30px 40px; background-color: #ffffff !important;">
-                <h1 style="font-size: 38px; font-weight: bold; color: #000000 !important; margin: 0 0 5px 0; letter-spacing: 0.5px; background-color: transparent !important;">TAX INVOICE</h1>
-                <div style="font-size: 16px; color: #333333 !important; margin-bottom: 40px; background-color: transparent !important;">INVOICE# ${invoiceNumber}</div>
+        <main style="padding: 30px 40px; background-color: #ffffff !important;">
+            <h1 style="font-size: 38px; font-weight: bold; color: #000000 !important; margin: 0 0 5px 0; letter-spacing: 0.5px; background-color: transparent !important;">TAX INVOICE</h1>
+            <div style="font-size: 16px; color: #333333 !important; margin-bottom: 40px; background-color: transparent !important;">INVOICE# ${invoiceNumber}</div>
 
-                <div style="display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 15px; color: #9e9e9e !important; background-color: transparent !important;">
-                    <div style="flex: 1; background-color: transparent !important;">
-                        <table style="border-collapse: collapse; background-color: #ffffff !important; border: none !important;">
-                            <tr style="background-color: #ffffff !important;">
-                                <td style="padding: 3px 20px 3px 0; color: #9e9e9e !important; background-color: #ffffff !important; border: none !important;">Invoice Date :</td>
-                                <td style="padding: 3px 0; color: #9e9e9e !important; background-color: #ffffff !important; border: none !important;">${formattedDate}</td>
-                            </tr>
-                            <tr style="background-color: #ffffff !important;">
-                                <td style="padding: 3px 20px 3px 0; color: #9e9e9e !important; background-color: #ffffff !important; border: none !important;">Due Date<span style="visibility: hidden;"> :</span></td>
-                                <td style="padding: 3px 0; color: #9e9e9e !important; background-color: #ffffff !important; border: none !important;">:${formattedDate}</td>
-                            </tr>
-                        </table>
-                    </div>
-                    <div style="flex: 1; text-align: right; color: #9e9e9e !important; background-color: transparent !important; line-height: 1.4;">
-                        ${billToHTML}
-                    </div>
-                </div>
-
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #ffffff !important; border: none !important;">
-                    <thead style="background-color: #e1e1e1 !important;">
-                        <tr style="background-color: #e1e1e1 !important;">
-                            <th style="padding: 12px 10px; text-align: left; background-color: #e1e1e1 !important; color: #000000 !important; font-weight: normal; border-top: 2px solid #000 !important; border-bottom: 2px solid #000 !important; font-size: 16px; width: 10%;">#No</th>
-                            <th style="padding: 12px 10px; text-align: left; background-color: #e1e1e1 !important; color: #000000 !important; font-weight: normal; border-top: 2px solid #000 !important; border-bottom: 2px solid #000 !important; font-size: 16px; width: 50%;">Item & Description</th>
-                            <th style="padding: 12px 10px; text-align: center; background-color: #e1e1e1 !important; color: #000000 !important; font-weight: normal; border-top: 2px solid #000 !important; border-bottom: 2px solid #000 !important; font-size: 16px; width: 20%;">Qty</th>
-                            <th style="padding: 12px 10px; text-align: center; background-color: #e1e1e1 !important; color: #000000 !important; font-weight: normal; border-top: 2px solid #000 !important; border-bottom: 2px solid #000 !important; font-size: 16px; width: 20%;">Rate</th>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 30px; font-size: 15px; color: #9e9e9e !important; background-color: transparent !important;">
+                <div style="flex: 1; background-color: transparent !important;">
+                    <table style="border-collapse: collapse; background-color: #ffffff !important; border: none !important;">
+                        <tr style="background-color: #ffffff !important;">
+                            <td style="padding: 3px 20px 3px 0; color: #9e9e9e !important; background-color: #ffffff !important; border: none !important;">Invoice Date :</td>
+                            <td style="padding: 3px 0; color: #9e9e9e !important; background-color: #ffffff !important; border: none !important;">${formattedDate}</td>
                         </tr>
-                    </thead>
-                    <tbody style="background-color: #ffffff !important;">
-                        <tr style="border-bottom: 1px solid #ccc !important; background-color: #ffffff !important;">
-                            <td style="padding: 12px 10px; text-align: left; vertical-align: top; font-size: 18px; color: #000000 !important; background-color: #ffffff !important; border-bottom: 1px solid #ccc !important; border-top: none !important; border-left: none !important; border-right: none !important;">1</td>
-                            <td style="padding: 12px 10px; text-align: left; vertical-align: top; font-size: 18px; color: #000000 !important; background-color: #ffffff !important; border-bottom: 1px solid #ccc !important; border-top: none !important; border-left: none !important; border-right: none !important;">
-                                <div style="color: #000000 !important; margin-bottom: 4px; font-size: 18px; background-color: transparent !important;">Transportation Service</div>
-                                <div style="color: #9e9e9e !important; font-size: 14px; background-color: transparent !important;">Monthly Ride Coverage</div>
-                            </td>
-                            <td style="padding: 12px 10px; text-align: center; vertical-align: top; font-size: 18px; color: #000000 !important; background-color: #ffffff !important; border-bottom: 1px solid #ccc !important; border-top: none !important; border-left: none !important; border-right: none !important;">1</td>
-                            <td style="padding: 12px 10px; text-align: center; vertical-align: top; font-size: 18px; color: #000000 !important; background-color: #ffffff !important; border-bottom: 1px solid #ccc !important; border-top: none !important; border-left: none !important; border-right: none !important;">AED ${totalAmount}</td>
+                        <tr style="background-color: #ffffff !important;">
+                            <td style="padding: 3px 20px 3px 0; color: #9e9e9e !important; background-color: #ffffff !important; border: none !important;">Due Date<span style="visibility: hidden;"> :</span></td>
+                            <td style="padding: 3px 0; color: #9e9e9e !important; background-color: #ffffff !important; border: none !important;">:${formattedDate}</td>
                         </tr>
-                    </tbody>
-                </table>
-
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 40px; background-color: transparent !important;">
-                    <div style="display: flex; align-items: center; border-top: 2px solid #000 !important; padding-top: 5px; min-width: 200px; justify-content: space-between; background-color: transparent !important;">
-                        <div style="font-size: 26px; font-weight: bold; color: #000000 !important; background-color: transparent !important;">Total:</div>
-                        <div style="font-size: 18px; color: #000000 !important; text-align: center; background-color: transparent !important;">AED ${totalAmount}</div>
-                    </div>
+                    </table>
                 </div>
-
-                <div style="display: flex; justify-content: space-between; margin-top: 20px; background-color: transparent !important;">
-                    <div style="flex: 1; background-color: transparent !important;">
-                        <h2 style="font-size: 22px; font-weight: normal; margin-bottom: 15px; color: #000000 !important; background-color: transparent !important;">Links:</h2>
-                        ${pickupLink ? `<a href="${pickupLink}" target="_blank" style="display: block; color: #00a8e8 !important; text-decoration: none; margin-bottom: 8px; font-size: 15px; background-color: transparent !important;">📍 Pickup Location Map</a>` : ''}
-                        ${dropoffLink ? `<a href="${dropoffLink}" target="_blank" style="display: block; color: #00a8e8 !important; text-decoration: none; margin-bottom: 8px; font-size: 15px; background-color: transparent !important;">📍 Dropoff Location Map</a>` : ''}
-                        ${routeLink ? `<a href="${routeLink}" target="_blank" style="display: block; color: #00a8e8 !important; text-decoration: none; margin-bottom: 8px; font-size: 15px; background-color: transparent !important;">🗺️ Complete Route Map</a>` : ''}
-                        ${(!pickupLink && !dropoffLink && !routeLink) ? '<span style="color: #9e9e9e !important; font-size: 15px; background-color: transparent !important;">No links provided for this route.</span>' : ''}
-                    </div>
-                    <div style="flex: 1; text-align: right; background-color: transparent !important;">
-                        ${selectedAccount ? `
-                            <h2 style="font-size: 22px; font-weight: normal; margin-bottom: 15px; color: #000000 !important; background-color: transparent !important;">Payment Details:</h2>
-                            <div style="font-size: 16px; color: #333 !important; line-height: 1.6; background-color: transparent !important;">
-                                ${selectedAccount.accountDetails ? selectedAccount.accountDetails.replace(/\n/g, '<br>') : ''}
-                            </div>
-                        ` : ''}
-                    </div>
+                <div style="flex: 1; text-align: right; color: #9e9e9e !important; background-color: transparent !important; line-height: 1.4;">
+                    ${billToHTML}
                 </div>
-            </main>
+            </div>
 
-            <footer style="background-color: #062337 !important; text-align: center; padding: 20px; color: #00b4d8 !important; font-size: 16px; margin-top: auto;">
-                Thank you for choosing RIVENTA ENTERPRISES
-            </footer>
-        </div>
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #ffffff !important; border: none !important;">
+                <thead style="background-color: #e1e1e1 !important;">
+                    <tr style="background-color: #e1e1e1 !important;">
+                        <th style="padding: 12px 10px; text-align: left; background-color: #e1e1e1 !important; color: #000000 !important; font-weight: normal; border-top: 2px solid #000 !important; border-bottom: 2px solid #000 !important; font-size: 16px; width: 10%;">#No</th>
+                        <th style="padding: 12px 10px; text-align: left; background-color: #e1e1e1 !important; color: #000000 !important; font-weight: normal; border-top: 2px solid #000 !important; border-bottom: 2px solid #000 !important; font-size: 16px; width: 50%;">Item & Description</th>
+                        <th style="padding: 12px 10px; text-align: center; background-color: #e1e1e1 !important; color: #000000 !important; font-weight: normal; border-top: 2px solid #000 !important; border-bottom: 2px solid #000 !important; font-size: 16px; width: 20%;">Qty</th>
+                        <th style="padding: 12px 10px; text-align: center; background-color: #e1e1e1 !important; color: #000000 !important; font-weight: normal; border-top: 2px solid #000 !important; border-bottom: 2px solid #000 !important; font-size: 16px; width: 20%;">Rate</th>
+                    </tr>
+                </thead>
+                <tbody style="background-color: #ffffff !important;">
+                    <tr style="border-bottom: 1px solid #ccc !important; background-color: #ffffff !important;">
+                        <td style="padding: 12px 10px; text-align: left; vertical-align: top; font-size: 18px; color: #000000 !important; background-color: #ffffff !important; border-bottom: 1px solid #ccc !important; border-top: none !important; border-left: none !important; border-right: none !important;">1</td>
+                        <td style="padding: 12px 10px; text-align: left; vertical-align: top; font-size: 18px; color: #000000 !important; background-color: #ffffff !important; border-bottom: 1px solid #ccc !important; border-top: none !important; border-left: none !important; border-right: none !important;">
+                            <div style="color: #000000 !important; margin-bottom: 4px; font-size: 18px; background-color: transparent !important;">Transportation Service</div>
+                            <div style="color: #9e9e9e !important; font-size: 14px; background-color: transparent !important;">Monthly Ride Coverage</div>
+                        </td>
+                        <td style="padding: 12px 10px; text-align: center; vertical-align: top; font-size: 18px; color: #000000 !important; background-color: #ffffff !important; border-bottom: 1px solid #ccc !important; border-top: none !important; border-left: none !important; border-right: none !important;">1</td>
+                        <td style="padding: 12px 10px; text-align: center; vertical-align: top; font-size: 18px; color: #000000 !important; background-color: #ffffff !important; border-bottom: 1px solid #ccc !important; border-top: none !important; border-left: none !important; border-right: none !important;">AED ${totalAmount}</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="display: flex; justify-content: flex-end; margin-bottom: 40px; background-color: transparent !important;">
+                <div style="display: flex; align-items: center; border-top: 2px solid #000 !important; padding-top: 5px; min-width: 200px; justify-content: space-between; background-color: transparent !important;">
+                    <div style="font-size: 26px; font-weight: bold; color: #000000 !important; background-color: transparent !important;">Total:</div>
+                    <div style="font-size: 18px; color: #000000 !important; text-align: center; background-color: transparent !important;">AED ${totalAmount}</div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 20px; background-color: transparent !important;">
+                <div style="flex: 1; background-color: transparent !important;">
+                    <h2 style="font-size: 22px; font-weight: normal; margin-bottom: 15px; color: #000000 !important; background-color: transparent !important;">Links:</h2>
+                    ${pickupLink ? `<a href="${pickupLink}" target="_blank" style="display: block; color: #00a8e8 !important; text-decoration: none; margin-bottom: 8px; font-size: 15px; background-color: transparent !important;">📍 Pickup Location Map</a>` : ''}
+                    ${dropoffLink ? `<a href="${dropoffLink}" target="_blank" style="display: block; color: #00a8e8 !important; text-decoration: none; margin-bottom: 8px; font-size: 15px; background-color: transparent !important;">📍 Dropoff Location Map</a>` : ''}
+                    ${routeLink ? `<a href="${routeLink}" target="_blank" style="display: block; color: #00a8e8 !important; text-decoration: none; margin-bottom: 8px; font-size: 15px; background-color: transparent !important;">🗺️ Complete Route Map</a>` : ''}
+                    ${(!pickupLink && !dropoffLink && !routeLink) ? '<span style="color: #9e9e9e !important; font-size: 15px; background-color: transparent !important;">No links provided for this route.</span>' : ''}
+                </div>
+                <div style="flex: 1; text-align: right; background-color: transparent !important;">
+                    ${selectedAccount ? `
+                        <h2 style="font-size: 22px; font-weight: normal; margin-bottom: 15px; color: #000000 !important; background-color: transparent !important;">Payment Details:</h2>
+                        <div style="font-size: 16px; color: #333 !important; line-height: 1.6; background-color: transparent !important;">
+                            ${selectedAccount.accountDetails ? selectedAccount.accountDetails.replace(/\n/g, '<br>') : ''}
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </main>
+
+        <footer style="background-color: #062337 !important; text-align: center; padding: 20px; color: #00b4d8 !important; font-size: 16px; margin-top: auto;">
+            Thank you for choosing RIVENTA ENTERPRISES
+        </footer>
     </div>
     `;
 
-    const opt = {
-        margin:       0,
-        filename:     (customDriverName ? 'Driver_' : '') + 'Invoice_' + invoiceNumber + '.pdf',
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2, 
-            useCORS: true, 
-            backgroundColor: '#f4f4f4'
-        },
-        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    // 1. Show Loader
+    showLoader();
+    showNotification('Preparing Invoice for Print/Save...', 'info');
+
+    // 2. Create a hidden iframe for native browser printing
+    const iframe = document.createElement('iframe');
+    iframe.style.visibility = 'hidden';
+    iframe.style.position = 'absolute';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    document.body.appendChild(iframe);
+
+    // 3. Write your HTML into the iframe with strict Print CSS
+    const iframeDoc = iframe.contentWindow.document;
+    iframeDoc.open();
+    iframeDoc.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>${(customDriverName ? 'Driver_' : '')}Invoice_${invoiceNumber}</title>
+            <style>
+                @media print {
+                    @page { 
+                        size: A4 portrait; 
+                        margin: 0.5cm; 
+                    }
+                    body { 
+                        -webkit-print-color-adjust: exact !important; 
+                        print-color-adjust: exact !important; 
+                    }
+                }
+            </style>
+        </head>
+        <body style="margin: 0; padding: 0;">
+            ${invoiceHTML}
+        </body>
+        </html>
+    `);
+    iframeDoc.close();
+
+    // 4. Trigger the print dialog once the iframe content loads
+    iframe.onload = function() {
+        hideLoader();
+        
+        // Slight delay ensures styles and images are fully rendered
+        setTimeout(() => {
+            iframe.contentWindow.focus();
+            iframe.contentWindow.print();
+            
+            // Clean up the iframe after a delay
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 3000);
+        }, 250);
     };
-
-    showNotification('Generating PDF, please wait...', 'info');
-
-    setTimeout(() => {
-        html2pdf().set(opt).from(invoiceHTML).save().then(() => {
-            showNotification('PDF Downloaded successfully!', 'success');
-        }).catch(err => {
-            console.error("PDF generation error: ", err);
-            showNotification('Error generating PDF', 'error');
-        });
-    }, 500);
 };
 // --- END OF NEW PDF & ACCOUNT SELECTION LOGIC ---
         // Filter and Sort Functions
