@@ -9879,9 +9879,14 @@ window.renderAccountList = function() {
         row.innerHTML = `
             <td><strong>${firstLine}</strong><br><small style="color: var(--text-secondary);">Click select to use full details</small></td>
             <td style="vertical-align: middle;">
-                <button class="bubbles btn-small" onclick="proceedWithPDF('${acc.id}')">
-                    <span class="text">Select</span>
-                </button>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button class="bubbles btn-small" onclick="proceedWithPDF('${acc.id}')">
+                        <span class="text">Select</span>
+                    </button>
+                    <button class="bubbles btn-small btn-danger" onclick="deleteAccount('${acc.id}')">
+                        <span class="text">Delete</span>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(row);
@@ -9918,7 +9923,23 @@ window.saveNewAccount = async function() {
         closeAddAccountModal();
     }
 };
-
+window.deleteAccount = async function(accountId) {
+    if (confirm('Are you sure you want to delete this bank account?')) {
+        if (window.deleteDoc && window.db) {
+            showLoader();
+            try {
+                await window.deleteDoc(window.doc(window.db, "bank_accounts", accountId));
+                hideLoader();
+                showNotification('Account deleted successfully', 'success');
+                // Note: The Firebase onSnapshot listener will automatically refresh the table for us!
+            } catch (error) {
+                console.error("Error deleting account:", error);
+                hideLoader();
+                showNotification('Error deleting account', 'error');
+            }
+        }
+    }
+};
 window.proceedWithPDF = function(accountId) {
     closeAccountSelector();
     
@@ -10308,7 +10329,7 @@ window.dismissCenterNotifications = function() {
     window.viewAttendanceDetails = viewAttendanceDetails;
     window.updateAttendanceModal = updateAttendanceModal;
     window.closeAttendanceModal = closeAttendanceModal;
-    
+    window.deleteAccount = deleteAccount;
     // Admin Tables
     window.filterAdminInvoices = filterAdminInvoices;
     window.editProfile = editProfile;
