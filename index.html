@@ -1558,65 +1558,16 @@ th, td {
     </div>
 
     <div class="nav-menu">
-        <button class="nav-btn active" onclick="showAdminSection('dashboard')">Dashboard</button>
-        <button class="nav-btn" onclick="showAdminSection('employees')">Employees</button>
-        <button class="nav-btn" onclick="showAdminSection('targets')">Assign Target</button>
-        <button class="nav-btn" onclick="showAdminSection('profiles')">Passenger Profiles</button>
-        <button class="nav-btn" onclick="showAdminSection('invoices')">Invoices</button>
-        <button class="nav-btn" onclick="showAdminSection('split')">Split Profile</button>
-        <button class="nav-btn" onclick="showAdminSection('finance')">Finance </button>
-        <button class="nav-btn" onclick="showAdminSection('attendance')">Attendance</button>
+        <button class="nav-btn active" onclick="showAdminSection('profiles')">Dashboard</button>
+        <button class="nav-btn" onclick="showAdminSection('employees')">Employees</button>
+        <button class="nav-btn" onclick="showAdminSection('targets')">Assign Target</button>
+        <button class="nav-btn" onclick="showAdminSection('invoices')">Invoices</button>
+        <button class="nav-btn" onclick="showAdminSection('split')">Split Profile</button>
+        <button class="nav-btn" onclick="showAdminSection('finance')">Finance </button>
+        <button class="nav-btn" onclick="showAdminSection('attendance')">Attendance</button>
+    </div>
 
-    </div>
 
-<!-- Dashboard Section -->
-<div id="admin-dashboard-section" class="section active">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px;">
-        <h3>Dashboard - Passenger Profiles</h3>
-        
-        <div class="filter-options" style="margin-bottom: 0;">
-            <button class="bubbles btn-small nav-btn active" onclick="filterDashboardByStatus('all', this)">
-                <span class="text">All Profiles</span>
-            </button>
-            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('no status yet', this)">
-                <span class="text">No Status</span>
-            </button>
-            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('booked', this)">
-                <span class="text">Booked</span>
-            </button>
-            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('pickup confirmed', this)">
-                <span class="text">Confirmed</span>
-            </button>
-            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('working', this)">
-                    <span class="text">Working</span>
-            </button>            
-            <button class="bubbles btn-small nav-btn" onclick="filterDashboardByStatus('canceled', this)">
-                <span class="text">Canceled</span>
-            </button>
-        </div>
-
-        <div class="inputbox" style="width: 200px; margin-bottom: 0;">
-            <input type="month" id="dashboard-month-filter" required="required">
-            <span>Select Month</span>
-            <i></i>
-        </div>
-    </div>
-    <div class="table-container">
-        <table id="admin-dashboard-table">
-            <thead>
-                <tr>
-                    <th>Date created</th><th>Passenger Name</th>
-                    <th>Agent Name</th>
-                    <th>Total Budget</th>
-                    <th>Driver Agent</th>
-                    <th>Pickup Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
-</div>
             <!-- Employees Section -->
             
 <div id="admin-employees" class="section">
@@ -1681,9 +1632,9 @@ th, td {
                 </div>
             </div>
             <!-- Passenger Profiles Section -->
-            <div id="admin-profiles" class="section">
+            <div id="admin-profiles" class="section active">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h3>Passenger Profile Management</h3>
+                    <h3>Dashboard</h3>
                     <div class="inputbox" style="width: 200px; margin-bottom: 0;">
                         <input type="month" id="profiles-month-filter" required="required">
                         <span>Select Month</span>
@@ -2407,8 +2358,6 @@ th, td {
     <div id="passenger-home" class="section active">
         <h3>Quick Links</h3>
         <div class="social-links">
-            <a href="https://wa.me/" target="_blank" class="social-link">📱 WhatsApp</a>
-            <a href="https://facebook.com" target="_blank" class="social-link facebook">📘 Facebook</a>
             <a href="https://maps.google.com" target="_blank" class="social-link maps">🗺️ Google Maps</a>
         </div>
         <div class="stats-grid">
@@ -2475,7 +2424,8 @@ th, td {
             <table id="passenger-dashboard-table">
                 <thead>
                     <tr>
-                        <th>Date created</th><th>Profile ID</th>
+                        <th>Date created</th>
+                        <th>Passenger Name</th> 
                         <th>Agent Name</th>
                         <th>Total Budget</th>
                         <th>Driver Agent</th>
@@ -2550,9 +2500,9 @@ th, td {
                             <i></i>
                         </div>
                         <div class="inputbox">
-                            <input type="number" id="days" placeholder="Enter days per month" min="1" max="31" required="required">
-                            <span>Days per Month</span>
-                            <i></i>
+                                    <input type="number" id="days" min="1" max="31" required="required">
+                                    <span>Days per Month</span>
+                                    <i></i>
                         </div>
                     </div>
                     
@@ -2792,17 +2742,22 @@ th, td {
                         </div>
                         <div class="form-row">
                             <div class="inputbox">
-                                <input type="number" id="extra-route-amount" step="0.01">
-                                <span>Route Amount (Display Only - AED)</span>
+                                <input type="url" id="second-pickup-link">
+                                <span>Second Pickup Link</span>
                                 <i></i>
                             </div>
                             <div class="inputbox">
-                                <input type="text" id="extra-route-desc">
-                                <span>Route Description</span>
+                                <input type="url" id="second-dropoff-link">
+                                <span>Second Dropoff Link</span>
                                 <i></i>
                             </div>
                         </div>
-                        <button type="button" class="bubbles btn-small btn-danger" onclick="document.getElementById('extra-route-container').style.display='none'; document.getElementById('extra-route-link').value=''; document.getElementById('extra-route-amount').value=''; document.getElementById('extra-route-desc').value=''; document.querySelector('button[onclick*=\\'extra-route-container\\']').style.display='inline-block';">
+                        <div class="inputbox">
+                            <input type="text" id="extra-route-desc">
+                            <span>Route Description</span>
+                            <i></i>
+                        </div>
+                        <button type="button" class="bubbles btn-small btn-danger" onclick="document.getElementById('extra-route-container').style.display='none'; document.getElementById('extra-route-link').value=''; document.getElementById('second-pickup-link').value=''; document.getElementById('second-dropoff-link').value=''; document.getElementById('extra-route-desc').value=''; document.querySelector('button[onclick*=\\'extra-route-container\\']').style.display='inline-block';">
                             <span class="text">Remove Extra Route</span>
                         </button>
                     </div>
@@ -2929,7 +2884,8 @@ th, td {
         <table id="driver-dashboard-table">
             <thead>
                 <tr>
-                    <th>Date created</th><th>Profile ID</th>
+                    <th>Date created</th>
+                    <th>Passenger Name</th> 
                     <th>Agent Name</th>
                     <th>Total Budget</th>
                     <th>Driver Agent</th>
@@ -3245,10 +3201,15 @@ th, td {
                     
                     <div id="modal-extra-route-container" style="display: none; margin-top: 15px; padding-top: 15px; border-top: 1px dashed rgba(255,255,255,0.2);">
                         <h5 style="color: var(--accent); margin-bottom: 10px;">Additional Route Details</h5>
-                        <p><strong>Extra Amount:</strong> AED <span id="modal-extra-route-amount">0.00</span></p>
                         <p><strong>Description:</strong> <span id="modal-extra-route-desc">N/A</span></p>
                         <p><strong>Extra Route Link:</strong> 
-                            <a href="#" id="modal-extra-route-link" target="_blank" class="social-link maps btn-small">View Extra Route</a>
+                            <a href="#" id="modal-extra-route-link" target="_blank" class="social-link maps btn-small" style="margin-bottom: 5px;">View Extra Route</a>
+                        </p>
+                        <p><strong>Second Pickup:</strong> 
+                            <a href="#" id="modal-second-pickup-link" target="_blank" class="social-link maps btn-small" style="margin-bottom: 5px;">View Second Pickup</a>
+                        </p>
+                        <p><strong>Second Dropoff:</strong> 
+                            <a href="#" id="modal-second-dropoff-link" target="_blank" class="social-link maps btn-small">View Second Dropoff</a>
                         </p>
                     </div>
                 </div>
@@ -4618,20 +4579,12 @@ function showAdminSection(section) {
     document.querySelectorAll('#admin-dashboard .section').forEach(sec => sec.classList.remove('active'));
     
     // 4. Show selected section
-    if (section === 'dashboard') {
-        document.getElementById('admin-dashboard-section').classList.add('active');
-        renderAdminDashboardSection();
-    } else {
-        const targetSection = document.getElementById(`admin-${section}`);
-        if (targetSection) targetSection.classList.add('active');
-    }
+    const targetSection = document.getElementById(`admin-${section}`);
+    if (targetSection) targetSection.classList.add('active');
     
     // 5. Reset filters logic
     const currentMonth = getCurrentMonth();
-    if (section === 'dashboard') {
-        document.getElementById('dashboard-month-filter').value = currentMonth;
-        currentDashboardMonth = currentMonth;
-    } else if (section === 'profiles') {
+    if (section === 'profiles') {
         document.getElementById('profiles-month-filter').value = currentMonth;
         currentProfilesMonth = currentMonth;
     } else if (section === 'cancelled') {
@@ -4647,7 +4600,6 @@ function showAdminSection(section) {
     
     // 6. Render content
     switch(section) {
-        case 'dashboard': renderAdminDashboardSection(); break;
         case 'employees': renderEmployeesTable(); break;
         case 'targets': renderAdminTargetsTable(); break;
         case 'profiles': renderAdminProfilesTable(); break;
@@ -5834,7 +5786,7 @@ function login() {
                 case 'admin':
                     document.getElementById('admin-dashboard').classList.add('active');
                     document.getElementById('admin-welcome').textContent = `Welcome, ${user.username}`;
-                    renderAdminDashboard();
+                    showAdminSection('profiles');
                     break;
                 case 'passenger':
                     document.getElementById('passenger-dashboard').classList.add('active');
@@ -7031,7 +6983,6 @@ function refreshAllTables() {
     try {
         // Refresh admin tables if admin dashboard is active
         if (document.getElementById('admin-dashboard') && document.getElementById('admin-dashboard').classList.contains('active')) {
-            renderAdminDashboardSection();
             renderAdminProfilesTable();
             renderAdminCancelledTable();
             renderAdminInvoicesTable();
@@ -8341,8 +8292,7 @@ function renderPassengerDashboardSection() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td style="color: var(--accent);">${profile.date}</td>
-            <td>${profile.id}</td>
-            <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
+            <td>${profile.passengerName || 'N/A'}</td> <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
             <td>AED ${profile.totalBudget.toFixed(2)}</td>
             <td>${driver ? (driver.fullname || driver.username) : 'Not Assigned'}</td>
             <td>
@@ -8467,8 +8417,7 @@ function renderDriverDashboardSection() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td style="color: var(--accent);">${profile.date}</td>
-            <td>${profile.id}</td>
-            <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
+            <td>${profile.passengerName || 'N/A'}</td> <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
             <td>AED ${profile.totalBudget.toFixed(2)}</td>
             <td>${driver ? (driver.fullname || driver.username) : 'Not Assigned'}</td>
             <td>
@@ -8825,32 +8774,31 @@ function showDriverSection(section) {
 
         // Invoice Management Functions
         function calculateFare() {
-            // FIXED: Properly check if values are selected
             if (!selectedPassengerType) {
                 document.getElementById("fare-result").innerHTML = '<div style="color: #dc3545; font-weight: bold;">⚠ Please select passenger type!</div>';
                 document.getElementById("fare-result").style.display = 'block';
                 return;
             }
-
+        
             if (!selectedRideWay) {
                 document.getElementById("fare-result").innerHTML = '<div style="color: #dc3545; font-weight: bold;">⚠ Please select ride type!</div>';
                 document.getElementById("fare-result").style.display = 'block';
                 return;
             }
-
+        
             let passengerType = parseInt(selectedPassengerType);
             let way = parseInt(selectedRideWay);
             let distance = parseFloat(document.getElementById("distance").value);
             let days = parseInt(document.getElementById("days").value);
-
+        
             if (isNaN(distance) || isNaN(days)) {
                 document.getElementById("fare-result").innerHTML = '<div style="color: #dc3545; font-weight: bold;">⚠ Fill all fields!</div>';
                 document.getElementById("fare-result").style.display = 'block';
                 return;
             }
-
+        
             let baseFare = 0, maxKm = 0;
-
+        
             if (distance <= 15) { baseFare = 1200; maxKm = 15; }
             else if (distance <= 20) { baseFare = 1400; maxKm = 20; }
             else if (distance <= 25) { baseFare = 1500; maxKm = 25; }
@@ -8871,30 +8819,42 @@ function showDriverSection(section) {
                 document.getElementById("fare-result").style.display = 'block';
                 return;
             }
-
-            // Step 1: Fare per km
-            let perKm = baseFare / maxKm;
-
-            // Step 2: Multiply by actual km
-            let ans2 = perKm * distance;
-
-            // Step 3: Divide by passenger type basis (5 for one-time, 20 for permanent)
-            let divisor = (passengerType === 1) ? 5 : 20;
-            let ans3 = ans2 / divisor;
-
-            // Step 4: Multiply by days
-            let totalPrivate = ans3 * days;
-
-            // Step 5: One Way = 60% of private
+        
+            let totalPrivate = 0;
+        
+            if (passengerType === 1) {
+                // --- NEW FORMULA: ONE-TIME RIDE ---
+                // Step 1: Calculate Per Day rate directly from the list's base fare
+                let dailyRate = baseFare / 20;
+                
+                // Step 2: Multiply by actual days requested
+                totalPrivate = dailyRate * days;
+            } else {
+                // --- OLD FORMULA: PERMANENT RIDE ---
+                // Step 1: Fare per km
+                let perKm = baseFare / maxKm;
+                
+                // Step 2: Multiply by actual km
+                let ans2 = perKm * distance;
+                
+                // Step 3: Divide by permanent divisor
+                let divisor = 20; 
+                let ans3 = ans2 / divisor;
+                
+                // Step 4: Multiply by days
+                totalPrivate = ans3 * days;
+            }
+        
+            // Step 5: One Way = 60% of private (Applies to both One-Time and Permanent)
             if (way === 1) totalPrivate *= 0.6;
-
+        
             // Step 6: Shared always = 60% of private
             let totalShared = totalPrivate * 0.6;
-
-            // Step 7: Add service charges
+        
+            // Step 7: Add 20% service charges
             let withServicePrivate = totalPrivate * 1.2;
             let withServiceShared = totalShared * 1.2;
-
+        
             document.getElementById("fare-result").innerHTML =
                 "<h4>Calculated Fare Results:</h4>" +
                 "<div style='background: rgba(26, 29, 37, 0.8); padding: 15px; border-radius: 8px; margin: 10px 0;'>" +
@@ -8905,7 +8865,7 @@ function showDriverSection(section) {
                 "<b>Shared Fare:</b><br>" +
                 "Base: " + totalShared.toFixed(2) + " AED  <br>" +
                 "With 20% Service Charges: " + withServiceShared.toFixed(2) + " AED  </div>";
-
+        
             document.getElementById("fare-result").style.display = 'block';
             document.getElementById("nextBtn").style.display = 'block';
         }
@@ -9001,7 +8961,8 @@ function calculateAndCreateInvoice() {
         const routeLink = document.getElementById('route-link').value.trim();
         const profileNote = document.getElementById('profile-note').value.trim(); // Get the note
         const extraRouteLink = document.getElementById('extra-route-link').value.trim();
-        const extraRouteAmount = document.getElementById('extra-route-amount').value.trim();
+        const secondPickupLink = document.getElementById('second-pickup-link').value.trim();
+        const secondDropoffLink = document.getElementById('second-dropoff-link').value.trim();
         const extraRouteDesc = document.getElementById('extra-route-desc').value.trim();
         // Get selected values directly from the choice boxes
         const daysPerWeekText = document.getElementById('days-per-week-choice').querySelector('span:first-child').textContent;
@@ -9084,7 +9045,8 @@ function calculateAndCreateInvoice() {
             routeLink: routeLink,
             note: profileNote, // Save the note
             extraRouteLink: extraRouteLink,
-            extraRouteAmount: extraRouteAmount ? parseFloat(extraRouteAmount) : 0,
+            secondPickupLink: secondPickupLink,
+            secondDropoffLink: secondDropoffLink,
             extraRouteDesc: extraRouteDesc,
             serviceChargesPaid: false,
             driverId: null,
@@ -9824,11 +9786,21 @@ function unassignDriverFromProfile(profileId) {
             routeLink.href = invoice.routeLink || '#';
             // Populate Extra Route if it exists
             const extraRouteContainer = document.getElementById('modal-extra-route-container');
-            if (invoice.extraRouteLink || invoice.extraRouteAmount || invoice.extraRouteDesc) {
+            if (invoice.extraRouteLink || invoice.secondPickupLink || invoice.secondDropoffLink || invoice.extraRouteDesc) {
                 extraRouteContainer.style.display = 'block';
-                document.getElementById('modal-extra-route-amount').textContent = (invoice.extraRouteAmount || 0).toFixed(2);
                 document.getElementById('modal-extra-route-desc').textContent = invoice.extraRouteDesc || 'N/A';
-                document.getElementById('modal-extra-route-link').href = invoice.extraRouteLink || '#';
+                
+                const extraRouteLinkElem = document.getElementById('modal-extra-route-link');
+                extraRouteLinkElem.href = invoice.extraRouteLink || '#';
+                extraRouteLinkElem.style.display = invoice.extraRouteLink ? 'inline-block' : 'none';
+
+                const secondPickupLinkElem = document.getElementById('modal-second-pickup-link');
+                secondPickupLinkElem.href = invoice.secondPickupLink || '#';
+                secondPickupLinkElem.style.display = invoice.secondPickupLink ? 'inline-block' : 'none';
+
+                const secondDropoffLinkElem = document.getElementById('modal-second-dropoff-link');
+                secondDropoffLinkElem.href = invoice.secondDropoffLink || '#';
+                secondDropoffLinkElem.style.display = invoice.secondDropoffLink ? 'inline-block' : 'none';
             } else {
                 extraRouteContainer.style.display = 'none';
             }
