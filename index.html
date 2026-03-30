@@ -722,6 +722,42 @@
         .btn-purple.bubbles {
                     --c2: #a020f0; /* Purple color */
         }
+/* Ensure Table Choice Boxes inherit specific status colors */
+.table-choice-box.status-paid {
+    background: rgba(0, 255, 140, 0.15) !important;
+    border-color: rgba(0, 255, 140, 0.3) !important;
+    color: #00ff8c !important;
+}
+
+.table-choice-box.status-unpaid {
+    background: rgba(255, 0, 87, 0.15) !important;
+    border-color: rgba(255, 0, 87, 0.3) !important;
+    color: #ff0057 !important;
+}
+
+.table-choice-box.status-assigned {
+    background: rgba(0, 234, 255, 0.15) !important;
+    border-color: rgba(0, 234, 255, 0.3) !important;
+    color: #00eaff !important;
+}
+
+.table-choice-box.status-unassigned {
+    background: rgba(255, 204, 0, 0.15) !important;
+    border-color: rgba(255, 204, 0, 0.3) !important;
+    color: #ffcc00 !important;
+}
+
+.table-choice-box.status-working {
+    background: rgba(160, 32, 240, 0.15) !important;
+    border-color: rgba(160, 32, 240, 0.3) !important;
+    color: #a020f0 !important;
+}
+
+.table-choice-box.status-default {
+    background: rgba(157, 163, 176, 0.15) !important;
+    border-color: rgba(157, 163, 176, 0.3) !important;
+    color: #9da3b0 !important;
+}
         /* FIXED: Ensure dropdowns appear above table content */
 #admin-profiles-table td {
     position: relative;
@@ -4961,49 +4997,35 @@ function getCurrentMonth() {
 function filterByMonth(items, month, dateField = 'date') {
     if (!month) return items;
     return items.filter(item => {
-        // Use the specified date field, fall back to 'date' if not available
-        const itemDate = new Date(item[dateField] || item.date);
-        const itemMonth = itemDate.toISOString().substr(0, 7);
-        return itemMonth === month;
+        const dateStr = item[dateField] || item.date;
+        if (!dateStr) return false;
+        // Use string startsWith to prevent timezone offset issues causing wrong months
+        return dateStr.startsWith(month);
     });
 }
 
-// Initialize month filters
+// Initialize month filters safely
 function initializeMonthFilters() {
-    // Set current month as default for all filters
     const currentMonth = getCurrentMonth();
     
-    document.getElementById('dashboard-month-filter').value = currentMonth;
-    document.getElementById('profiles-month-filter').value = currentMonth;
-    document.getElementById('cancelled-month-filter').value = currentMonth;
-    document.getElementById('invoices-month-filter').value = currentMonth;
-    document.getElementById('finance-month-filter').value = currentMonth;
-    
-    // Add event listeners
-    document.getElementById('dashboard-month-filter').addEventListener('change', function() {
-        currentDashboardMonth = this.value;
-        renderAdminDashboardSection();
-    });
-    
-    document.getElementById('profiles-month-filter').addEventListener('change', function() {
-        currentProfilesMonth = this.value;
-        renderAdminProfilesTable();
-    });
-    
-    document.getElementById('cancelled-month-filter').addEventListener('change', function() {
-        currentCancelledMonth = this.value;
-        renderAdminCancelledTable();
-    });
-    
-    document.getElementById('invoices-month-filter').addEventListener('change', function() {
-        currentInvoicesMonth = this.value;
-        renderAdminInvoicesTable();
-    });
-    
-    document.getElementById('finance-month-filter').addEventListener('change', function() {
-        currentFinanceMonth = this.value;
-        renderFinanceSection();
-    });
+    // Helper function to safely set up filters without crashing if an element is missing
+    const setupFilter = (id, onChangeCallback) => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = currentMonth;
+            el.addEventListener('change', function() {
+                onChangeCallback(this.value);
+            });
+        }
+    };
+
+    setupFilter('profiles-month-filter', val => { currentProfilesMonth = val; renderAdminProfilesTable(); });
+    setupFilter('cancelled-month-filter', val => { currentCancelledMonth = val; renderAdminCancelledTable(); });
+    setupFilter('invoices-month-filter', val => { currentInvoicesMonth = val; renderAdminInvoicesTable(); });
+    setupFilter('finance-month-filter', val => { currentFinanceMonth = val; renderFinanceSection(); });
+    setupFilter('profit-month-filter', val => { currentProfitMonth = val; if(typeof renderProfitSection === 'function') renderProfitSection(); });
+    setupFilter('expense-month-filter', val => { currentExpenseMonth = val; if(typeof renderExpensesSection === 'function') renderExpensesSection(); });
+    setupFilter('attendance-month-filter', val => { if(typeof renderAttendanceSheet === 'function') renderAttendanceSheet(); });
 }
 
 // Update the render functions to include month filtering:
@@ -5556,11 +5578,17 @@ choiceOptions.forEach(option => {
                    const value = option.getAttribute('data-value');
                    const text = option.textContent;
                    
-                   // Update choice box text
+// Update choice box text
                    choiceBox.querySelector('span:first-child').textContent = text;
                    
-                   // Add selected class for color fill
-                   choiceBox.classList.add('selected');
+                   // Dynamically apply correct status class instead of generic 'selected'
+                   if (container.id.includes('pickup-status')) {
+                       choiceBox.className = 'table-choice-box ' + getPickupStatusClass(value);
+                   } else if (container.id.includes('payment-status') || container.id.includes('service-charges-status')) {
+                       choiceBox.className = 'table-choice-box ' + (value === 'paid' ? 'status-paid' : 'status-unpaid');
+                   } else {
+                       choiceBox.classList.add('selected');
+                   }
                    
                    // Close dropdown
                    container.classList.remove('active');
@@ -6718,7 +6746,7 @@ function renderAdminProfilesTable() {
             </td>
             <td>
                 <div class="table-choice-container" id="pickup-status-container-${profile.id}">
-                    <div class="table-choice-box ${getPickupStatusClass(profile.pickupStatus)} selected" id="pickup-status-choice-${profile.id}">
+                    <div class="table-choice-box ${getPickupStatusClass(profile.pickupStatus)}" id="pickup-status-choice-${profile.id}">
                         <span>${pickupStatusText}</span>
                         <span>▼</span>
                     </div>
