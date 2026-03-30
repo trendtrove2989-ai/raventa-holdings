@@ -2358,7 +2358,9 @@ th, td {
     <div id="passenger-home" class="section active">
         <h3>Quick Links</h3>
         <div class="social-links">
-            <a href="https://maps.google.com" target="_blank" class="social-link maps">🗺️ Google Maps</a>
+            <a href="https://wa.me/" target="whatsapp_tab" class="social-link" style="background: #25D366;">📱 WhatsApp</a>
+            <a href="https://facebook.com/" target="facebook_tab" class="social-link facebook">📘 Facebook</a>
+            <a href="https://maps.google.com/" target="maps_tab" class="social-link maps">🗺️ Google Maps</a>
         </div>
         <div class="stats-grid">
             <div class="stat-card">
@@ -2442,9 +2444,9 @@ th, td {
             <div id="passenger-home" class="section active">
                 <h3>Quick Links</h3>
                 <div class="social-links">
-                    <a href="https://wa.me/" target="_blank" class="social-link">📱 WhatsApp</a>
-                    <a href="https://facebook.com" target="_blank" class="social-link facebook">📘 Facebook</a>
-                    <a href="https://maps.google.com" target="_blank" class="social-link maps">🗺️ Google Maps</a>
+                    <a href="https://wa.me/" target="whatsapp_tab" class="social-link" style="background: #25D366;">📱 WhatsApp</a>
+                    <a href="https://facebook.com/" target="facebook_tab" class="social-link facebook">📘 Facebook</a>
+                    <a href="https://maps.google.com/" target="maps_tab" class="social-link maps">🗺️ Google Maps</a>
                 </div>
                 <div class="stats-grid">
                     <div class="stat-card">
@@ -2576,7 +2578,6 @@ th, td {
                     <table id="passenger-profiles-table">
                         <thead>
                             <tr>
-                                <th>Profile ID</th>
                                 <th>Passenger Name</th>
                                 <th>Phone</th>
                                 <th>Created Date</th>
@@ -2607,14 +2608,36 @@ th, td {
                     </div>
                     
                     <div class="form-row">
-                        <div class="inputbox">
-                            <input type="time" id="pickup-time" required="required">
-                            <span>Pickup Time</span>
+                        <div class="inputbox" style="display: flex; gap: 5px; align-items: flex-end;">
+                            <select id="pickup-hour" style="flex: 1; cursor: pointer;" required>
+                                <option value="" disabled selected>HH</option>
+                                <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                            </select>
+                            <span style="position: static; padding: 0 2px;">:</span>
+                            <select id="pickup-min" style="flex: 1; cursor: pointer;" required>
+                                <option value="" disabled selected>MM</option>
+                                <option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
+                            </select>
+                            <select id="pickup-ampm" style="flex: 1; cursor: pointer;" required>
+                                <option value="AM">AM</option><option value="PM">PM</option>
+                            </select>
+                            <span style="transform: translateX(-10px) translateY(-34px); font-size: 0.75em; color: var(--accent);">Pickup Time</span>
                             <i></i>
                         </div>
-                        <div class="inputbox">
-                            <input type="time" id="dropoff-time" required="required">
-                            <span>Dropoff Time</span>
+                        <div class="inputbox" style="display: flex; gap: 5px; align-items: flex-end;">
+                            <select id="dropoff-hour" style="flex: 1; cursor: pointer;" required>
+                                <option value="" disabled selected>HH</option>
+                                <option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option>
+                            </select>
+                            <span style="position: static; padding: 0 2px;">:</span>
+                            <select id="dropoff-min" style="flex: 1; cursor: pointer;" required>
+                                <option value="" disabled selected>MM</option>
+                                <option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
+                            </select>
+                            <select id="dropoff-ampm" style="flex: 1; cursor: pointer;" required>
+                                <option value="AM">AM</option><option value="PM">PM</option>
+                            </select>
+                            <span style="transform: translateX(-10px) translateY(-34px); font-size: 0.75em; color: var(--accent);">Dropoff Time</span>
                             <i></i>
                         </div>
                     </div>
@@ -2861,9 +2884,9 @@ th, td {
     <div id="driver-home" class="section active">
         <h3>Quick Links</h3>
         <div class="social-links">
-            <a href="https://wa.me/" target="_blank" class="social-link">📱 WhatsApp</a>
-            <a href="https://facebook.com" target="_blank" class="social-link facebook">📘 Facebook</a>
-            <a href="https://maps.google.com" target="_blank" class="social-link maps">🗺️ Google Maps</a>
+            <a href="https://wa.me/" target="whatsapp_tab" class="social-link" style="background: #25D366;">📱 WhatsApp</a>
+            <a href="https://facebook.com/" target="facebook_tab" class="social-link facebook">📘 Facebook</a>
+            <a href="https://maps.google.com/" target="maps_tab" class="social-link maps">🗺️ Google Maps</a>
         </div>
         <div class="stats-grid">
             <div class="stat-card">
@@ -2946,9 +2969,9 @@ th, td {
     <div id="driver-home" class="section">
         <h3>Quick Links</h3>
         <div class="social-links">
-            <a href="https://wa.me/" target="_blank" class="social-link">📱 WhatsApp</a>
-            <a href="https://facebook.com" target="_blank" class="social-link facebook">📘 Facebook</a>
-            <a href="https://maps.google.com" target="_blank" class="social-link maps">🗺️ Google Maps</a>
+            <a href="https://wa.me/" target="whatsapp_tab" class="social-link" style="background: #25D366;">📱 WhatsApp</a>
+            <a href="https://facebook.com/" target="facebook_tab" class="social-link facebook">📘 Facebook</a>
+            <a href="https://maps.google.com/" target="maps_tab" class="social-link maps">🗺️ Google Maps</a>
         </div>
         <div class="stats-grid">
             <div class="stat-card">
@@ -8072,7 +8095,6 @@ function updateServiceChargesStatus(invoiceId, newStatus) {
             sortedProfiles.forEach(profile => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${profile.id}</td>
                     <td>${profile.passengerName || 'N/A'}</td>
                     <td>${profile.passengerPhone || 'N/A'}</td>
                     <td>${profile.date}</td>
@@ -8948,8 +8970,14 @@ function calculateAndCreateInvoice() {
         // Get all form values
         const passengerName = document.getElementById('passenger-name').value.trim();
         const passengerPhone = document.getElementById('passenger-phone').value.trim();
-        const pickupTime = document.getElementById('pickup-time').value;
-        const dropoffTime = document.getElementById('dropoff-time').value;
+        const pickupTime = `${document.getElementById('pickup-hour').value}:${document.getElementById('pickup-min').value} ${document.getElementById('pickup-ampm').value}`;
+        const dropoffTime = `${document.getElementById('dropoff-hour').value}:${document.getElementById('dropoff-min').value} ${document.getElementById('dropoff-ampm').value}`;
+        
+        if (pickupTime.includes("HH") || pickupTime.includes("MM") || dropoffTime.includes("HH") || dropoffTime.includes("MM")) {
+            showNotification('Please select complete pickup and dropoff times', 'error');
+            hideLoader();
+            return;
+        }
         const totalBudget = parseFloat(document.getElementById('total-budget').value);
         const serviceCharges = parseFloat(document.getElementById('service-charges').value);
         const driverCharges = parseFloat(document.getElementById('driver-charges').value);
