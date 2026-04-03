@@ -1866,9 +1866,16 @@ th, td {
 <div id="admin-split" class="section">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
         <h3>Split Profile Management</h3>
-        <button class="bubbles" onclick="openSplitProfileSelector()" style="width: auto; min-width: 150px;">
-            <span class="text">Add Split Profile</span>
-        </button>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <div class="inputbox" style="width: 200px; margin-bottom: 0;">
+                <input type="month" id="split-month-filter" required="required" onchange="updateSplitMonthFilter(this.value)">
+                <span>Select Month</span>
+                <i></i>
+            </div>
+            <button class="bubbles" onclick="openSplitProfileSelector()" style="width: auto; min-width: 150px;">
+                <span class="text">Add Split Profile</span>
+            </button>
+        </div>
     </div>
 
     <div class="table-container">
@@ -2488,6 +2495,28 @@ th, td {
             </div>
         </div>
         
+        <div class="filter-options" style="margin-bottom: 20px;">
+            <label><strong>Filter by Status:</strong></label>
+            <button class="bubbles btn-small nav-btn active" onclick="filterPassengerProfilesByStatus('all', this)">
+                <span class="text">All Profiles</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterPassengerProfilesByStatus('booked', this)">
+                <span class="text">Booked</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterPassengerProfilesByStatus('working', this)">
+                <span class="text">Working</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterPassengerProfilesByStatus('pickup confirmed', this)">
+                <span class="text">Confirmed</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterPassengerProfilesByStatus('canceled', this)">
+                <span class="text">Canceled</span>
+            </button>
+            <button class="bubbles btn-small nav-btn" onclick="filterPassengerProfilesByStatus('no status yet', this)">
+                <span class="text">Not Yet</span>
+            </button>
+        </div>
+        
         <div class="table-container">
             <table id="passenger-dashboard-table">
                 <thead>
@@ -2992,6 +3021,28 @@ th, td {
             <span>Select Month</span>
             <i></i>
         </div>
+    </div>
+    
+    <div class="filter-options" style="margin-bottom: 20px;">
+        <label><strong>Filter by Status:</strong></label>
+        <button class="bubbles btn-small nav-btn active" onclick="filterDriverProfilesByStatus('all', this)">
+            <span class="text">All Profiles</span>
+        </button>
+        <button class="bubbles btn-small nav-btn" onclick="filterDriverProfilesByStatus('booked', this)">
+            <span class="text">Booked</span>
+        </button>
+        <button class="bubbles btn-small nav-btn" onclick="filterDriverProfilesByStatus('working', this)">
+            <span class="text">Working</span>
+        </button>
+        <button class="bubbles btn-small nav-btn" onclick="filterDriverProfilesByStatus('pickup confirmed', this)">
+            <span class="text">Confirmed</span>
+        </button>
+        <button class="bubbles btn-small nav-btn" onclick="filterDriverProfilesByStatus('canceled', this)">
+            <span class="text">Canceled</span>
+        </button>
+        <button class="bubbles btn-small nav-btn" onclick="filterDriverProfilesByStatus('no status yet', this)">
+            <span class="text">Not Yet</span>
+        </button>
     </div>
     
     <div class="table-container">
@@ -3577,10 +3628,14 @@ let pendingSplitProfileId = null;
 // 2. Render the Main Split Section Table (Shows already split profiles)
 function renderAdminSplitTable() {
     const tbody = document.querySelector('#admin-split-table tbody');
+    if (!tbody) return;
     tbody.innerHTML = '';
 
     // Filter invoices that have been split
-    const splitInvoices = invoices.filter(inv => inv.isSplit === true);
+    let splitInvoices = invoices.filter(inv => inv.isSplit === true);
+    
+    // NEW: Apply Month Filter
+    splitInvoices = filterByMonth(splitInvoices, currentSplitMonth);
 
     if (splitInvoices.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; padding: 20px;">No split profiles found.</td></tr>`;
@@ -4696,20 +4751,18 @@ function showAdminSection(section) {
     const targetSection = document.getElementById(`admin-${section}`);
     if (targetSection) targetSection.classList.add('active');
     
-    // 5. Reset filters logic
-    const currentMonth = getCurrentMonth();
+    // 5. Apply saved filters logic (Do not force reset to current month)
     if (section === 'profiles') {
-        document.getElementById('profiles-month-filter').value = currentMonth;
-        currentProfilesMonth = currentMonth;
+        document.getElementById('profiles-month-filter').value = currentProfilesMonth;
     } else if (section === 'cancelled') {
-        document.getElementById('cancelled-month-filter').value = currentMonth;
-        currentCancelledMonth = currentMonth;
+        document.getElementById('cancelled-month-filter').value = currentCancelledMonth;
     } else if (section === 'invoices') {
-        document.getElementById('invoices-month-filter').value = currentMonth;
-        currentInvoicesMonth = currentMonth;
+        document.getElementById('invoices-month-filter').value = currentInvoicesMonth;
     } else if (section === 'finance') {
-        document.getElementById('finance-month-filter').value = currentMonth;
-        currentFinanceMonth = currentMonth;
+        document.getElementById('finance-month-filter').value = currentFinanceMonth;
+    } else if (section === 'split') {
+        const splitFilterElem = document.getElementById('split-month-filter');
+        if (splitFilterElem) splitFilterElem.value = currentSplitMonth;
     }
     
     // 6. Render content
@@ -4845,6 +4898,13 @@ let currentPassengerDashMonth = getCurrentMonth();
 let currentDriverDashMonth = getCurrentMonth();
 let currentInvoicesMonth = getCurrentMonth();
 let currentFinanceMonth = getCurrentMonth();
+let currentSplitMonth = getCurrentMonth(); // NEW
+
+// NEW: Global Handlers for Month Filters
+window.updateProfilesMonthFilter = function(val) { currentProfilesMonth = val; renderAdminProfilesTable(); };
+window.updatePassengerDashMonthFilter = function(val) { currentPassengerDashMonth = val; renderPassengerDashboardSection(); };
+window.updateDriverDashMonthFilter = function(val) { currentDriverDashMonth = val; renderDriverDashboardSection(); };
+window.updateSplitMonthFilter = function(val) { currentSplitMonth = val; renderAdminSplitTable(); };
 
 // Profit Management Functions
 function renderProfitSection() {
@@ -5080,7 +5140,12 @@ function initializeMonthFilters() {
     setupFilter('cancelled-month-filter', val => { currentCancelledMonth = val; renderAdminCancelledTable(); });
     setupFilter('passenger-dash-month-filter', val => { currentPassengerDashMonth = val; renderPassengerDashboardSection(); });
     setupFilter('driver-dash-month-filter', val => { currentDriverDashMonth = val; renderDriverDashboardSection(); });
-    setupFilter('invoices-month-filter', val => { currentInvoicesMonth = val; renderAdminInvoicesTable(); });
+    setupFilter('invoices-month-filter', val => { 
+        currentInvoicesMonth = val; 
+        renderAdminInvoicesTable(); 
+        renderClosedInvoicesTable();
+        renderChangedDriverTable();
+    });
     setupFilter('finance-month-filter', val => { currentFinanceMonth = val; renderFinanceSection(); });
     setupFilter('profit-month-filter', val => { currentProfitMonth = val; if(typeof renderProfitSection === 'function') renderProfitSection(); });
     setupFilter('expense-month-filter', val => { currentExpenseMonth = val; if(typeof renderExpensesSection === 'function') renderExpensesSection(); });
@@ -5212,76 +5277,6 @@ function renderAdminDashboardSection() {
     initializeAdminTableChoiceBoxes();
 }
 
-function renderAdminProfilesTable() {
-    const tbody = document.querySelector('#admin-profiles-table tbody');
-    tbody.innerHTML = '';
-    
-    // REPLACED: Removed the status filter so ALL profiles show here
-    const allProfilesForMonth = invoices; 
-    
-    // Still keep the month filter so the list doesn't get thousands of entries over time
-    const filteredProfiles = filterByMonth(allProfilesForMonth, currentProfilesMonth);
-    
-    if (filteredProfiles.length === 0) {
-        const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">No profiles found for this month</td>`;
-        tbody.appendChild(row);
-        return;
-    }
-    
-    const sortedProfiles = sortInvoicesByDate(filteredProfiles);
-    const availableDrivers = users.filter(user => user.role === 'driver');
-    
-    sortedProfiles.forEach(profile => {
-        if (!profile.pickupStatus) { profile.pickupStatus = 'no status yet'; }
-        
-        // Get display text
-        const pickupStatusText = getPickupStatusText(profile.pickupStatus);
-        
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td style="color: var(--accent);">${profile.date}</td>
-            <td>${profile.passengerName || 'N/A'}</td>
-            <td>${profile.passengerAgent || 'N/A'}</td>
-            <td>AED ${profile.totalBudget.toFixed(2)}</td>
-            <td>
-                <div class="table-choice-container" id="driver-agent-container-${profile.id}">
-                    <div class="table-choice-box ${profile.driverAgent ? 'selected' : ''}" id="driver-agent-choice-${profile.id}">
-                        <span>${profile.driverAgent || 'Not Assigned Yet'}</span>
-                        <span>▼</span>
-                    </div>
-                    <div class="table-choice-options">
-                        ${availableDrivers.map(driver => 
-                            `<div class="table-choice-option" data-value="${driver.id}">${driver.fullname || driver.username}</div>`
-                        ).join('')}
-                    </div>
-                </div>
-            </td>
-            <td>
-                <div class="table-choice-container" id="pickup-status-container-${profile.id}">
-                    <div class="table-choice-box ${profile.pickupStatus !== 'no status yet' ? 'selected' : ''}" id="pickup-status-choice-${profile.id}">
-                        <span>${pickupStatusText}</span>
-                        <span>▼</span>
-                    </div>
-                    <div class="table-choice-options">
-                        <div class="table-choice-option" data-value="no status yet">Not Yet</div>
-                        <div class="table-choice-option" data-value="booked">Booked</div> 
-                        <div class="table-choice-option" data-value="working">Working</div>
-                        <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
-                        <div class="table-choice-option" data-value="canceled">Canceled</div>
-                    </div>
-                </div>
-            </td>
-            <td>
-                <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
-                    <span class="text">View Profile</span>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(row);
-    });
-    initializeAdminTableChoiceBoxes();
-}
 
 
 window.renderAttendanceSheet = function() {
@@ -6795,7 +6790,7 @@ function renderAdminProfilesTable() {
     
     if (filteredProfiles.length === 0) {
         const row = document.createElement('tr');
-        row.innerHTML = `<td colspan="6" style="text-align: center; padding: 20px;">No profiles found for this month</td>`;
+        row.innerHTML = `<td colspan="7" style="text-align: center; padding: 20px;">No profiles found for this month</td>`;
         tbody.appendChild(row);
         return;
     }
@@ -6844,9 +6839,14 @@ function renderAdminProfilesTable() {
                 </div>
             </td>
             <td>
-                <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
-                    <span class="text">View Profile</span>
-                </button>
+                <div class="driver-actions">
+                    <button class="bubbles btn-small btn-edit" onclick="editProfile('${profile.id}')">
+                        <span class="text">Edit</span>
+                    </button>
+                    <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
+                        <span class="text">View</span>
+                    </button>
+                </div>
             </td>
         `;
         tbody.appendChild(row);
@@ -7166,8 +7166,10 @@ function renderAdminInvoicesTable() {
         inv.pickupStatus === 'pickup confirmed' && 
         (!inv.invoiceState || inv.invoiceState === 'active')
     );
-    let filteredInvoices = sortInvoicesByDate(confirmedInvoices);
     
+    // NEW: Apply the month filter before sorting!
+    const monthFiltered = filterByMonth(confirmedInvoices, currentInvoicesMonth);
+    let filteredInvoices = sortInvoicesByDate(monthFiltered);
     if (filteredInvoices.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px;">No active confirmed invoices found</td></tr>`;
         return;
@@ -7270,11 +7272,13 @@ window.confirmCloseProfile = async function(side) {
     if (!invId) return;
 
     const newState = side === 'passenger' ? 'closed_passenger' : 'changed_driver';
+    const currentCloseDate = new Date().toISOString().split('T')[0]; // Captures today's date
 
     if (window.updateDoc && window.db) {
         showLoader();
         await window.updateDoc(window.doc(window.db, "invoices", invId), {
-            invoiceState: newState
+            invoiceState: newState,
+            closedDate: currentCloseDate // Saves the exact date the profile was closed
         });
         showNotification(`Profile moved to ${side === 'passenger' ? 'Closed Invoices' : 'Changed Driver'}`, "success");
         document.getElementById('close-profile-modal').style.display = 'none';
@@ -7309,7 +7313,10 @@ function renderClosedInvoicesTable() {
     tbody.innerHTML = '';
     
     const closedInvoices = invoices.filter(inv => inv.invoiceState === 'closed_passenger');
-    let filteredInvoices = sortInvoicesByDate(closedInvoices);
+    
+    // Looks for 'closedDate' first. (If it's an old profile from before this update, it safely falls back to creation date)
+    const monthFiltered = filterByMonth(closedInvoices, currentInvoicesMonth, 'closedDate');
+    let filteredInvoices = sortInvoicesByDate(monthFiltered);
     
     if (filteredInvoices.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px;">No closed invoices found</td></tr>`;
@@ -7350,7 +7357,10 @@ function renderChangedDriverTable() {
     tbody.innerHTML = '';
     
     const changedInvoices = invoices.filter(inv => inv.invoiceState === 'changed_driver');
-    let filteredInvoices = sortInvoicesByDate(changedInvoices);
+    
+    // Looks for 'closedDate' first. 
+    const monthFiltered = filterByMonth(changedInvoices, currentInvoicesMonth, 'closedDate');
+    let filteredInvoices = sortInvoicesByDate(monthFiltered);
     
     if (filteredInvoices.length === 0) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; padding: 20px;">No changed driver profiles found</td></tr>`;
@@ -8403,14 +8413,33 @@ function renderDriverEarnings() {
         }
         // Passenger Dashboard Functions
 // Passenger Dashboard Functions - EXACT COPY OF ADMIN DASHBOARD
+// NEW: Status filter logic for Passenger Dashboard
+let currentPassengerDashStatusFilter = 'all';
+
+window.filterPassengerProfilesByStatus = function(status, btnElement) {
+    currentPassengerDashStatusFilter = status;
+    const container = btnElement.parentElement;
+    container.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    renderPassengerDashboardSection();
+};
+
 function renderPassengerDashboardSection() {
     const tbody = document.querySelector('#passenger-dashboard-table tbody');
     if (!tbody) return;
     
     tbody.innerHTML = '';
     
-    // Get ALL profiles and filter by the selected month
-    const allProfiles = invoices.filter(inv => inv.date.startsWith(currentPassengerDashMonth));
+    // 1. Get ALL profiles and filter by the selected month
+    let allProfiles = invoices.filter(inv => inv.date.startsWith(currentPassengerDashMonth));
+    
+    // 2. Filter by selected status
+    if (currentPassengerDashStatusFilter !== 'all') {
+        allProfiles = allProfiles.filter(profile => {
+            const status = profile.pickupStatus || 'no status yet';
+            return status === currentPassengerDashStatusFilter;
+        });
+    }
     
     if (allProfiles.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px;">No passenger profiles found</td></tr>`;
@@ -8528,14 +8557,33 @@ function editPassengerProfile(profileId) {
 // Driver Dashboard Functions
 // Driver Dashboard Functions - EXACT COPY OF ADMIN DASHBOARD
 // Driver Dashboard Functions - EXACT COPY OF ADMIN DASHBOARD
+// NEW: Status filter logic for Driver Dashboard
+let currentDriverDashStatusFilter = 'all';
+
+window.filterDriverProfilesByStatus = function(status, btnElement) {
+    currentDriverDashStatusFilter = status;
+    const container = btnElement.parentElement;
+    container.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    renderDriverDashboardSection();
+};
+
 function renderDriverDashboardSection() {
     const tbody = document.querySelector('#driver-dashboard-table tbody');
     if (!tbody) return;
     
     tbody.innerHTML = '';
     
-    // Showing profiles filtered by the selected month
-    const allProfiles = invoices.filter(inv => inv.date.startsWith(currentDriverDashMonth));
+    // 1. Showing profiles filtered by the selected month
+    let allProfiles = invoices.filter(inv => inv.date.startsWith(currentDriverDashMonth));
+    
+    // 2. Filter by selected status
+    if (currentDriverDashStatusFilter !== 'all') {
+        allProfiles = allProfiles.filter(profile => {
+            const status = profile.pickupStatus || 'no status yet';
+            return status === currentDriverDashStatusFilter;
+        });
+    }
     
     if (allProfiles.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">No passenger profiles found</td></tr>`;
