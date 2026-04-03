@@ -1678,11 +1678,34 @@ th, td {
                     </div>
                 </div>
                 
+                <div class="filter-options" style="margin-bottom: 20px;">
+                    <label><strong>Filter by Status:</strong></label>
+                    <button class="bubbles btn-small nav-btn active" onclick="filterAdminProfilesByStatus('all', this)">
+                        <span class="text">All Profiles</span>
+                    </button>
+                    <button class="bubbles btn-small nav-btn" onclick="filterAdminProfilesByStatus('booked', this)">
+                        <span class="text">Booked</span>
+                    </button>
+                    <button class="bubbles btn-small nav-btn" onclick="filterAdminProfilesByStatus('working', this)">
+                        <span class="text">Working</span>
+                    </button>
+                    <button class="bubbles btn-small nav-btn" onclick="filterAdminProfilesByStatus('pickup confirmed', this)">
+                        <span class="text">Confirmed</span>
+                    </button>
+                    <button class="bubbles btn-small nav-btn" onclick="filterAdminProfilesByStatus('canceled', this)">
+                        <span class="text">Canceled</span>
+                    </button>
+                    <button class="bubbles btn-small nav-btn" onclick="filterAdminProfilesByStatus('no status yet', this)">
+                        <span class="text">Not Yet</span>
+                    </button>
+                </div>
+                
                 <div class="table-container">
                     <table id="admin-profiles-table">
                         <thead>
                             <tr>
-                                <th>passenger name</th>
+                                <th>Date created</th>
+                                <th>Passenger Name</th>
                                 <th>Agent Name</th>
                                 <th>Total Budget</th>
                                 <th>Driver Agent</th>
@@ -2456,7 +2479,14 @@ th, td {
     </div>
     <!-- Passenger Dashboard Section -->
     <div id="passenger-dashboard-section" class="section">
-        <h3>Dashboard - All Passenger Profiles</h3>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h3>Dashboard - All Passenger Profiles</h3>
+            <div class="inputbox" style="width: 200px; margin-bottom: 0;">
+                <input type="month" id="passenger-dash-month-filter" required="required">
+                <span>Select Month</span>
+                <i></i>
+            </div>
+        </div>
         
         <div class="table-container">
             <table id="passenger-dashboard-table">
@@ -2502,9 +2532,7 @@ th, td {
                 
                 <!-- Rate List Button -->
                 <div style="margin-bottom: 20px;">
-                    <button class="bubbles btn-small" onclick="showRateList()">
-                        <span class="text">View Rate List</span>
-                    </button>
+ 
                 </div>
 
                 <div class="invoice-form">
@@ -2550,9 +2578,7 @@ th, td {
                     
                     <div id="fare-result" style="margin-top: 15px; padding: 15px; background: rgba(26, 29, 37, 0.8); border-radius: 8px; display: none;"></div>
                     
-                    <button id="nextBtn" class="bubbles btn-success" style="margin-top: 15px; display: none;" onclick="useCalculatedFare()">
-                        <span class="text">Use This Fare</span>
-                    </button>
+   
                 </div>
             </div>
 
@@ -2652,7 +2678,18 @@ th, td {
                             <span style="position: static; padding: 0 2px;">:</span>
                             <select id="pickup-min" style="flex: 1; cursor: pointer;" required>
                                 <option value="" disabled selected>MM</option>
-                                <option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
+                                <option value="00">00</option>
+                                <option value="05">05</option>
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                                <option value="20">20</option>
+                                <option value="25">25</option>
+                                <option value="30">30</option>
+                                <option value="35">35</option>
+                                <option value="40">40</option>
+                                <option value="45">45</option>
+                                <option value="50">50</option>
+                                <option value="55">55</option>
                             </select>
                             <select id="pickup-ampm" style="flex: 1; cursor: pointer;" required>
                                 <option value="AM">AM</option><option value="PM">PM</option>
@@ -2668,7 +2705,18 @@ th, td {
                             <span style="position: static; padding: 0 2px;">:</span>
                             <select id="dropoff-min" style="flex: 1; cursor: pointer;" required>
                                 <option value="" disabled selected>MM</option>
-                                <option value="00">00</option><option value="15">15</option><option value="30">30</option><option value="45">45</option>
+                                <option value="00">00</option>
+                                <option value="05">05</option>
+                                <option value="10">10</option>
+                                <option value="15">15</option>
+                                <option value="20">20</option>
+                                <option value="25">25</option>
+                                <option value="30">30</option>
+                                <option value="35">35</option>
+                                <option value="40">40</option>
+                                <option value="45">45</option>
+                                <option value="50">50</option>
+                                <option value="55">55</option>
                             </select>
                             <select id="dropoff-ampm" style="flex: 1; cursor: pointer;" required>
                                 <option value="AM">AM</option><option value="PM">PM</option>
@@ -2937,7 +2985,14 @@ th, td {
     </div>
   <!-- Driver Dashboard Section - EXACT COPY OF ADMIN DASHBOARD -->
 <div id="driver-dashboard-section" class="section active">
-    <h3>Dashboard - All Passenger Profiles</h3>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3>Dashboard - All Passenger Profiles</h3>
+        <div class="inputbox" style="width: 200px; margin-bottom: 0;">
+            <input type="month" id="driver-dash-month-filter" required="required">
+            <span>Select Month</span>
+            <i></i>
+        </div>
+    </div>
     
     <div class="table-container">
         <table id="driver-dashboard-table">
@@ -4786,6 +4841,8 @@ let currentExpenseMonth = getCurrentMonth();
 let currentCancelledMonth = getCurrentMonth();
 let currentDashboardMonth = getCurrentMonth();
 let currentProfilesMonth = getCurrentMonth();
+let currentPassengerDashMonth = getCurrentMonth();
+let currentDriverDashMonth = getCurrentMonth();
 let currentInvoicesMonth = getCurrentMonth();
 let currentFinanceMonth = getCurrentMonth();
 
@@ -5021,6 +5078,8 @@ function initializeMonthFilters() {
 
     setupFilter('profiles-month-filter', val => { currentProfilesMonth = val; renderAdminProfilesTable(); });
     setupFilter('cancelled-month-filter', val => { currentCancelledMonth = val; renderAdminCancelledTable(); });
+    setupFilter('passenger-dash-month-filter', val => { currentPassengerDashMonth = val; renderPassengerDashboardSection(); });
+    setupFilter('driver-dash-month-filter', val => { currentDriverDashMonth = val; renderDriverDashboardSection(); });
     setupFilter('invoices-month-filter', val => { currentInvoicesMonth = val; renderAdminInvoicesTable(); });
     setupFilter('finance-month-filter', val => { currentFinanceMonth = val; renderFinanceSection(); });
     setupFilter('profit-month-filter', val => { currentProfitMonth = val; if(typeof renderProfitSection === 'function') renderProfitSection(); });
@@ -5181,6 +5240,7 @@ function renderAdminProfilesTable() {
         
         const row = document.createElement('tr');
         row.innerHTML = `
+            <td style="color: var(--accent);">${profile.date}</td>
             <td>${profile.passengerName || 'N/A'}</td>
             <td>${profile.passengerAgent || 'N/A'}</td>
             <td>AED ${profile.totalBudget.toFixed(2)}</td>
@@ -6700,15 +6760,38 @@ function renderAdminDashboardSection() {
     // Re-initialize dropdowns for the main table
     initializeAdminTableChoiceBoxes();
 }
+// NEW: Global variable and function for status filter
+let currentAdminProfilesStatusFilter = 'all';
+
+window.filterAdminProfilesByStatus = function(status, btnElement) {
+    currentAdminProfilesStatusFilter = status;
+    
+    // Update active button styling
+    const container = btnElement.parentElement;
+    container.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+    btnElement.classList.add('active');
+    
+    // Re-render the table
+    renderAdminProfilesTable();
+};
+
 function renderAdminProfilesTable() {
     const tbody = document.querySelector('#admin-profiles-table tbody');
     tbody.innerHTML = '';
     
-    // MASTER LIST: We take ALL invoices without filtering by status
+    // MASTER LIST: We take ALL invoices
     const allProfiles = invoices; 
     
-    // We only filter by the selected month to keep the list organized
-    const filteredProfiles = filterByMonth(allProfiles, currentProfilesMonth);
+    // 1. Filter by the selected month
+    let filteredProfiles = filterByMonth(allProfiles, currentProfilesMonth);
+    
+    // 2. Filter by selected status
+    if (currentAdminProfilesStatusFilter !== 'all') {
+        filteredProfiles = filteredProfiles.filter(profile => {
+            const status = profile.pickupStatus || 'no status yet';
+            return status === currentAdminProfilesStatusFilter;
+        });
+    }
     
     if (filteredProfiles.length === 0) {
         const row = document.createElement('tr');
@@ -6728,6 +6811,7 @@ function renderAdminProfilesTable() {
         
         const row = document.createElement('tr');
         row.innerHTML = `
+            <td style="color: var(--accent);">${profile.date}</td>
             <td>${profile.passengerName || 'N/A'}</td>
             <td>${profile.passengerAgent || 'N/A'}</td>
             <td>AED ${profile.totalBudget.toFixed(2)}</td>
@@ -8325,8 +8409,8 @@ function renderPassengerDashboardSection() {
     
     tbody.innerHTML = '';
     
-    // Get ALL profiles for the system as requested (showing the master view)
-    const allProfiles = invoices;
+    // Get ALL profiles and filter by the selected month
+    const allProfiles = invoices.filter(inv => inv.date.startsWith(currentPassengerDashMonth));
     
     if (allProfiles.length === 0) {
         tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 20px;">No passenger profiles found</td></tr>`;
@@ -8450,8 +8534,8 @@ function renderDriverDashboardSection() {
     
     tbody.innerHTML = '';
     
-    // Showing all profiles in the master dashboard view
-    const allProfiles = invoices;
+    // Showing profiles filtered by the selected month
+    const allProfiles = invoices.filter(inv => inv.date.startsWith(currentDriverDashMonth));
     
     if (allProfiles.length === 0) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 20px;">No passenger profiles found</td></tr>`;
@@ -8849,21 +8933,21 @@ function showDriverSection(section) {
         
             let baseFare = 0, maxKm = 0;
         
-            if (distance <= 15) { baseFare = 1200; maxKm = 15; }
-            else if (distance <= 20) { baseFare = 1400; maxKm = 20; }
-            else if (distance <= 25) { baseFare = 1500; maxKm = 25; }
-            else if (distance <= 30) { baseFare = 1700; maxKm = 30; }
-            else if (distance <= 45) { baseFare = 2200; maxKm = 45; }
-            else if (distance <= 60) { baseFare = 2600; maxKm = 60; }
-            else if (distance <= 70) { baseFare = 2900; maxKm = 70; }
-            else if (distance <= 80) { baseFare = 3200; maxKm = 80; }
-            else if (distance <= 90) { baseFare = 3500; maxKm = 90; }
-            else if (distance <= 100) { baseFare = 3800; maxKm = 100; }
-            else if (distance <= 110) { baseFare = 4000; maxKm = 110; }
-            else if (distance <= 120) { baseFare = 4300; maxKm = 120; }
-            else if (distance <= 130) { baseFare = 4500; maxKm = 130; }
-            else if (distance <= 140) { baseFare = 4800; maxKm = 140; }
-            else if (distance <= 160) { baseFare = 5500; maxKm = 160; }
+            if (distance <= 15) { baseFare = 1300; maxKm = 15; }
+            else if (distance <= 20) { baseFare = 1500; maxKm = 20; }
+            else if (distance <= 25) { baseFare = 1600; maxKm = 25; }
+            else if (distance <= 30) { baseFare = 1800; maxKm = 30; }
+            else if (distance <= 45) { baseFare = 2300; maxKm = 45; }
+            else if (distance <= 60) { baseFare = 2700; maxKm = 60; }
+            else if (distance <= 70) { baseFare = 3000; maxKm = 70; }
+            else if (distance <= 80) { baseFare = 3300; maxKm = 80; }
+            else if (distance <= 90) { baseFare = 3600; maxKm = 90; }
+            else if (distance <= 100) { baseFare = 3900; maxKm = 100; }
+            else if (distance <= 110) { baseFare = 4100; maxKm = 110; }
+            else if (distance <= 120) { baseFare = 4400; maxKm = 120; }
+            else if (distance <= 130) { baseFare = 4600; maxKm = 130; }
+            else if (distance <= 140) { baseFare = 4900; maxKm = 140; }
+            else if (distance <= 160) { baseFare = 5600; maxKm = 160; }
             else {
                 document.getElementById("fare-result").innerHTML = '<div style="color: #dc3545; font-weight: bold;">⚠ Distance exceeds maximum limit (160 km)</div>';
                 document.getElementById("fare-result").style.display = 'block';
@@ -8920,39 +9004,39 @@ function showDriverSection(section) {
             document.getElementById("nextBtn").style.display = 'block';
         }
 
-        function showRateList() {
-            const rateList = [
-                { range: "Up to 15 km", fare: "1200 AED  " },
-                { range: "16-20 km", fare: "1400 AED  " },
-                { range: "21-25 km", fare: "1500 AED  " },
-                { range: "26-30 km", fare: "1700 AED  " },
-                { range: "31-45 km", fare: "2200 AED  " },
-                { range: "46-60 km", fare: "2600 AED  " },
-                { range: "61-70 km", fare: "2900 AED  " },
-                { range: "71-80 km", fare: "3200 AED  " },
-                { range: "81-90 km", fare: "3500 AED  " },
-                { range: "91-100 km", fare: "3800 AED  " },
-                { range: "101-110 km", fare: "4000 AED  " },
-                { range: "111-120 km", fare: "4300 AED  " },
-                { range: "121-130 km", fare: "4500 AED  " },
-                { range: "131-140 km", fare: "4800 AED  " },
-                { range: "141-160 km", fare: "5500 AED  " }
-            ];
+        // function showRateList() {
+        //     const rateList = [
+        //         { range: "Up to 15 km", fare: "1200 AED  " },
+        //         { range: "16-20 km", fare: "1400 AED  " },
+        //         { range: "21-25 km", fare: "1500 AED  " },
+        //         { range: "26-30 km", fare: "1700 AED  " },
+        //         { range: "31-45 km", fare: "2200 AED  " },
+        //         { range: "46-60 km", fare: "2600 AED  " },
+        //         { range: "61-70 km", fare: "2900 AED  " },
+        //         { range: "71-80 km", fare: "3200 AED  " },
+        //         { range: "81-90 km", fare: "3500 AED  " },
+        //         { range: "91-100 km", fare: "3800 AED  " },
+        //         { range: "101-110 km", fare: "4000 AED  " },
+        //         { range: "111-120 km", fare: "4300 AED  " },
+        //         { range: "121-130 km", fare: "4500 AED  " },
+        //         { range: "131-140 km", fare: "4800 AED  " },
+        //         { range: "141-160 km", fare: "5500 AED  " }
+        //     ];
 
-            const tbody = document.getElementById('rate-list-body');
-            tbody.innerHTML = '';
+        //     const tbody = document.getElementById('rate-list-body');
+        //     tbody.innerHTML = '';
             
-            rateList.forEach(rate => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${rate.range}</td>
-                    <td>${rate.fare}</td>
-                `;
-                tbody.appendChild(row);
-            });
+        //     rateList.forEach(rate => {
+        //         const row = document.createElement('tr');
+        //         row.innerHTML = `
+        //             <td>${rate.range}</td>
+        //             <td>${rate.fare}</td>
+        //         `;
+        //         tbody.appendChild(row);
+        //     });
 
-            document.getElementById('rate-list-modal').style.display = 'block';
-        }
+        //     document.getElementById('rate-list-modal').style.display = 'block';
+        // }
 
         function closeRateList() {
             document.getElementById('rate-list-modal').style.display = 'none';
