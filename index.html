@@ -4115,8 +4115,19 @@ function sendPasswordReset() {
     // Generate new random password
     const newPassword = generateRandomPassword();
     
-    // Update user's password
+    // Update user's password locally
     user.password = newPassword;
+    
+    // ---> FIX: SAVE THE NEW PASSWORD TO FIREBASE PERMANENTLY <---
+    if (window.updateDoc && window.db) {
+        window.updateDoc(window.doc(window.db, "users", user.id), {
+            password: newPassword
+        }).then(() => {
+            console.log("Password updated permanently in database.");
+        }).catch(err => {
+            console.error("Failed to save new password to database:", err);
+        });
+    }
     
     // Prepare email template parameters
     const templateParams = {
@@ -4131,10 +4142,10 @@ function sendPasswordReset() {
         fullname: user.fullname || user.username
     };
     
-    // Send email using EmailJS - USE THE CORRECT TEMPLATE ID
+    // Send email using EmailJS
     emailjs.send(
         EMAILJS_CONFIG.SERVICE_ID,
-        'template_st209al', // Use the template ID from your signup function
+        'template_st209al', 
         templateParams
     )
     .then(function(response) {
@@ -6477,48 +6488,65 @@ function populatePassengerAgentDropdown() {
     });
 }
         // Password Change Function
-        function changePassword(userType) {
-            showLoader();
-            
-            setTimeout(() => {
-                let newPasswordId;
-                switch(userType) {
-                    case 'admin':
-                        newPasswordId = 'admin-new-password';
-                        break;
-                    case 'passenger':
-                        newPasswordId = 'passenger-new-password';
-                        break;
-                    case 'driver':
-                        newPasswordId = 'driver-new-password';
-                        break;
-                }
-                
-                const newPassword = document.getElementById(newPasswordId).value.trim();
-                
-                if (!newPassword) {
-                    showNotification('Please enter a new password', 'error');
-                    hideLoader();
-                    return;
-                }
-                
-                if (newPassword.length < 6) {
-                    showNotification('Password must be at least 6 characters long', 'error');
-                    hideLoader();
-                    return;
-                }
-                
-                currentUser.password = newPassword;
+function changePassword(userType) {
+    showLoader();
+    
+    setTimeout(() => {
+        let newPasswordId;
+        switch(userType) {
+            case 'admin':
+                newPasswordId = 'admin-new-password';
+                break;
+            case 'passenger':
+                newPasswordId = 'passenger-new-password';
+                break;
+            case 'driver':
+                newPasswordId = 'driver-new-password';
+                break;
+        }
+        
+        const newPassword = document.getElementById(newPasswordId).value.trim();
+        
+        if (!newPassword) {
+            showNotification('Please enter a new password', 'error');
+            hideLoader();
+            return;
+        }
+        
+        if (newPassword.length < 6) {
+            showNotification('Password must be at least 6 characters long', 'error');
+            hideLoader();
+            return;
+        }
+        
+        // Update locally
+        currentUser.password = newPassword;
+        
+        // ---> FIX: SAVE THE NEW PASSWORD TO FIREBASE PERMANENTLY <---
+        if (window.updateDoc && window.db) {
+            window.updateDoc(window.doc(window.db, "users", currentUser.id), {
+                password: newPassword
+            }).then(() => {
                 document.getElementById(newPasswordId).value = '';
                 showNotification('Password updated successfully', 'success');
-                
                 hideLoader();
-            }, 1000);
+            }).catch(error => {
+                console.error("Error updating password in DB:", error);
+                showNotification('Error saving password to database', 'error');
+                hideLoader();
+            });
+        } else {
+            // Fallback just in case DB connection is missing
+            document.getElementById(newPasswordId).value = '';
+            showNotification('Password updated locally', 'success');
+            hideLoader();
         }
+    }, 1000);
+}
 
 
 
-        function renderAdminDashboard() {
+function renderAdminDashboard() {
     const tbody = document.querySelector('#admin-dashboard-table tbody');
     if (!tbody) return;
     
