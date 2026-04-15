@@ -1617,6 +1617,7 @@ th, td {
                                 <th>Role</th>
                                 <th>Earnings</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -1669,12 +1670,17 @@ th, td {
             </div>
             <!-- Passenger Profiles Section -->
             <div id="admin-profiles" class="section active">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h3>Dashboard</h3>
-                    <div class="inputbox" style="width: 200px; margin-bottom: 0;">
-                        <input type="month" id="profiles-month-filter" required="required">
-                        <span>Select Month</span>
-                        <i></i>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <button id="toggle-btn-profiles" class="bubbles btn-small btn-secondary" onclick="loadPreviousMonth('profiles', this)" style="width: auto;">
+                            <span class="text">Load Prev Month</span>
+                        </button>
+                        <div class="inputbox" style="width: 200px; margin-bottom: 0;">
+                            <input type="month" id="profiles-month-filter" required="required">
+                            <span>Select Month</span>
+                            <i></i>
+                        </div>
                     </div>
                 </div>
                 
@@ -1746,12 +1752,17 @@ th, td {
             </div> 
             <!-- Invoices Section -->
             <div id="admin-invoices" class="section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
                     <h3>Invoice Management</h3>
-                    <div class="inputbox" style="width: 200px; margin-bottom: 0;">
-                        <input type="month" id="invoices-month-filter" required="required">
-                        <span>Select Month</span>
-                        <i></i>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <button id="toggle-btn-invoices" class="bubbles btn-small btn-secondary" onclick="loadPreviousMonth('invoices', this)" style="width: auto;">
+                            <span class="text">Load Prev Month</span>
+                        </button>
+                        <div class="inputbox" style="width: 200px; margin-bottom: 0;">
+                            <input type="month" id="invoices-month-filter" required="required">
+                            <span>Select Month</span>
+                            <i></i>
+                        </div>
                     </div>
                 </div>
                 
@@ -3343,8 +3354,10 @@ th, td {
                     <p><strong>Ride Type:</strong> <span id="modal-ride-type"></span></p>
                 </div>
                 
-                <div class="invoice-section">
-                    <h4>Financial Details</h4>
+                <div class="invoice-section" id="modal-actual-driver-section" style="display: none;">
+                    <h4>Pickup Driver Details</h4>
+                    <p><strong>Driver Name:</strong> <span id="modal-actual-driver-name" style="color: var(--status-paid); font-weight: bold;"></span></p>
+                </div>
                     <p><strong>Total Budget:</strong> AED    <span id="modal-total-budget"></span></p>
                     <p><strong>Service Charges:</strong> AED    <span id="modal-service-charges"></span></p>
                     <p><strong>Driver Charges:</strong> AED    <span id="modal-driver-charges">0.00</span></p>
@@ -3499,36 +3512,58 @@ th, td {
       onSnapshot(collection(db, "invoices"), (snapshot) => {
           window.invoices = [];
           window.finance = { totalPaid: 0, transactions: [] }; // Reset Finance
-    
+
           snapshot.forEach((doc) => {
               const inv = doc.data();
               window.invoices.push(inv);
-    
-              // Auto-build Finance Transactions based on saved Invoice status
-              if (inv.paymentStatus === 'paid') {
-                  window.finance.transactions.push({
-                      invoiceId: inv.id,
-                      amount: (inv.driverCharges || 0),
-                      date: inv.date, time: inv.time,
-                      driverId: inv.driverId,
-                      type: 'driver_payment'
-                  });
-                  window.finance.totalPaid += (inv.driverCharges || 0);
+
+              // 1. DRIVER SIDE REVENUE (Handles Full, Partial, and Legacy Paid Status)
+              let driverPaid = 0;
+              if (inv.driverAmountPaid > 0) {
+                  driverPaid = inv.driverAmountPaid;
+              } else if (inv.paymentStatus === 'paid' || inv.driverPayStatus === 'Paid') {
+                  driverPaid = inv.driverCharges || 0;
               }
-              if (inv.serviceChargesPaid) {
+
+              if (driverPaid > 0) {
                   window.finance.transactions.push({
                       invoiceId: inv.id,
-                      amount: inv.serviceCharges,
-                      date: inv.date, time: inv.time,
-                      type: 'service_charges'
+                      amount: driverPaid,
+                      date: inv.date, 
+                      time: inv.time,
+                      driverId: inv.driverId,
+                      type: 'driver_payment',
+                      description: `Driver Payment - ${inv.passengerName || 'N/A'}`
                   });
-                  window.finance.totalPaid += inv.serviceCharges;
+                  window.finance.totalPaid += driverPaid;
+              }
+
+              // 2. PASSENGER SIDE REVENUE (Handles Full, Partial, and Legacy Service Charges)
+              let passengerPaid = 0;
+              if (inv.passengerAmountPaid > 0) {
+                  passengerPaid = inv.passengerAmountPaid;
+              } else if (inv.serviceChargesPaid || inv.passengerPayStatus === 'Paid') {
+                  passengerPaid = inv.serviceCharges || 0;
+              }
+
+              if (passengerPaid > 0) {
+                  window.finance.transactions.push({
+                      invoiceId: inv.id,
+                      amount: passengerPaid,
+                      date: inv.date, 
+                      time: inv.time,
+                      type: 'service_charges',
+                      description: `Passenger Payment - ${inv.passengerName || 'N/A'}`
+                  });
+                  window.finance.totalPaid += passengerPaid;
               }
           });
-    
-          // Refresh Tables
+
+          // Refresh Tables and Finance Displays
           if (typeof refreshAllTables === "function") refreshAllTables();
           if (typeof renderFinanceSection === "function") renderFinanceSection();
+          if (typeof renderFinanceOverview === "function") renderFinanceOverview();
+          if (typeof renderProfitSection === "function") renderProfitSection();
       });
     </script>
     
@@ -3603,6 +3638,52 @@ function getBasicSalary(role) {
     };
     return baseSalaries[role] || 10000;
 }
+window.loadPreviousMonth = function(section, btnElement) {
+    // 1. Calculate Current and Previous Month strings (YYYY-MM)
+    const date = new Date();
+    const currentMonthStr = date.toISOString().substr(0, 7);
+    
+    date.setMonth(date.getMonth() - 1);
+    const prevMonthStr = date.toISOString().substr(0, 7);
+
+    // 2. Identify the correct input filter
+    let inputId = section === 'profiles' ? 'profiles-month-filter' : 'invoices-month-filter';
+    let input = document.getElementById(inputId);
+    
+    if (!input) return;
+
+    // 3. Toggle Logic
+    if (input.value === currentMonthStr) {
+        // Switch TO Previous Month
+        input.value = prevMonthStr;
+        btnElement.querySelector('.text').textContent = "Load Current Month";
+        btnElement.classList.remove('btn-secondary');
+        btnElement.classList.add('btn-success');
+        showNotification("Loaded previous month's records", "info");
+    } else {
+        // Switch TO Current Month (if it's on prev month, or manually changed)
+        input.value = currentMonthStr;
+        btnElement.querySelector('.text').textContent = "Load Prev Month";
+        btnElement.classList.remove('btn-success');
+        btnElement.classList.add('btn-secondary');
+        showNotification("Loaded current month's records", "success");
+    }
+
+    // 4. Trigger the UI/Table Updates
+    if (section === 'profiles') {
+        if (typeof window.updateProfilesMonthFilter === "function") {
+            window.updateProfilesMonthFilter(input.value);
+        } else {
+            currentProfilesMonth = input.value; 
+            renderAdminProfilesTable();
+        }
+    } else if (section === 'invoices') {
+        currentInvoicesMonth = input.value;
+        renderAdminInvoicesTable();
+        renderClosedInvoicesTable();
+        renderChangedDriverTable();
+    }
+};
 // Forgot Password Functions
 function showForgotPasswordModal() {
     document.getElementById('forgot-password-email').value = '';
@@ -4270,7 +4351,8 @@ function calculateEmployeeSalary(employeeId) {
     
     if (employee.role === 'passenger') {
         const userTargets = employee.targets || [];
-        const monthlyTargets = userTargets.filter(t => (t.assignedDate && t.assignedDate.startsWith(currentMonthStr)));
+        // Pull the currently active target, regardless of what month it was assigned
+        const monthlyTargets = userTargets.filter(t => t.status === 'Active');
         if (monthlyTargets.length > 0) {
             const totalTargetGoal = monthlyTargets.reduce((sum, t) => sum + (parseInt(t.amount) || 0), 0);
             const totalAchievedSoFar = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonthStr)).length;
@@ -4279,7 +4361,7 @@ function calculateEmployeeSalary(employeeId) {
     } else if (employee.role === 'driver') {
         const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
         const totalTargetGoal = driverInvoices.length;
-        const totalAchievedSoFar = driverInvoices.filter(inv => inv.pickupStatus === 'pickup confirmed' || inv.paymentStatus === 'paid').length;
+        const totalAchievedSoFar = driverInvoices.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
         if (totalTargetGoal > 0) performanceRate = (totalAchievedSoFar / totalTargetGoal);
     }
 
@@ -4863,7 +4945,7 @@ function renderDriverMonthlyGross() {
     const assignedProfiles = monthDriverProfiles.length;
     
     // Achieved is those that are booked/confirmed
-    const pickedProfiles = monthDriverProfiles.filter(inv => inv.pickupStatus === 'pickup confirmed' || inv.paymentStatus === 'paid').length;
+    const pickedProfiles = monthDriverProfiles.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
     
     // Calculate achievement rate
     const achievementRate = assignedProfiles > 0 ? (pickedProfiles / assignedProfiles) * 100 : 0;
@@ -6139,15 +6221,15 @@ function renderAdminTargetsTable() {
             assignedAmount = activeTargets.reduce((sum, target) => sum + (parseInt(target.amount) || 0), 0);
             
             if (activeTargets.length > 0) {
-                const targetMonth = activeTargets[0].assignedDate.substr(0, 7);
-                achievedAmount = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(targetMonth)).length;
+                // Automatically check against the current month being viewed
+                achievedAmount = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonthStr)).length;
             }
         } else if (employee.role === 'driver') {
             // Driver dynamic target: Total profiles assigned to them this month
             const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
             assignedAmount = driverInvoices.length;
             // Achieved: Profiles that are confirmed or paid
-            achievedAmount = driverInvoices.filter(inv => inv.pickupStatus === 'pickup confirmed' || inv.paymentStatus === 'paid').length;
+            achievedAmount = driverInvoices.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
         }
         
         const progressPercent = assignedAmount > 0 ? (achievedAmount / assignedAmount) * 100 : 0;
@@ -6174,7 +6256,14 @@ function renderAdminTargetsTable() {
                 <button class="bubbles btn-small" onclick="openAssignTargetModal('${employee.id}')">
                     <span class="text">Assign Target</span>
                 </button>
-                ` : `<span style="color: var(--text-secondary); font-size: 0.85em; font-weight: bold;">Auto-Assigned</span>`}
+                ` : `
+                <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
+                    <span style="color: var(--text-secondary); font-size: 0.85em; font-weight: bold;">Auto-Assigned</span>
+                    <button class="bubbles btn-small btn-secondary" style="--size-letter: 12px; padding: 6px 12px;" onclick="viewDriverProgress('${employee.id}')">
+                        <span class="text">Prev Progress</span>
+                    </button>
+                </div>
+                `}
             </td>
         `;
         tbody.appendChild(row);
@@ -6233,7 +6322,7 @@ function searchEmployees() {
         } else if (employee.role === 'driver') {
             const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
             assignedAmount = driverInvoices.length;
-            achievedAmount = driverInvoices.filter(inv => inv.pickupStatus === 'pickup confirmed' || inv.paymentStatus === 'paid').length;
+            achievedAmount = driverInvoices.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
         }
         
         const progressPercent = assignedAmount > 0 ? (achievedAmount / assignedAmount) * 100 : 0;
@@ -6259,7 +6348,14 @@ function searchEmployees() {
                 <button class="bubbles btn-small" onclick="openAssignTargetModal('${employee.id}')">
                     <span class="text">Assign Target</span>
                 </button>
-                ` : `<span style="color: var(--text-secondary); font-size: 0.85em; font-weight: bold;">Auto-Assigned</span>`}
+                ` : `
+                <div style="display: flex; flex-direction: column; gap: 5px; align-items: center;">
+                    <span style="color: var(--text-secondary); font-size: 0.85em; font-weight: bold;">Auto-Assigned</span>
+                    <button class="bubbles btn-small btn-secondary" style="--size-letter: 12px; padding: 6px 12px;" onclick="viewDriverProgress('${employee.id}')">
+                        <span class="text">Prev Progress</span>
+                    </button>
+                </div>
+                `}
             </td>
         `;
         tbody.appendChild(row);
@@ -6304,26 +6400,82 @@ function openAssignTargetModal(employeeId) {
     
     selectedEmployeeForTarget = employeeId;
     document.getElementById('target-employee-name').textContent = employee.username;
-    
-    // Clear form
     document.getElementById('target-amount-input').value = '';
     
-    // Set default deadline to 30 days from now
-    const defaultDeadline = new Date();
-    defaultDeadline.setDate(defaultDeadline.getDate() + 30);
-    document.getElementById('target-deadline').value = defaultDeadline.toISOString().split('T')[0];
+    // --- CALCULATE PREVIOUS MONTH PROGRESS ---
+    const now = new Date();
+    now.setMonth(now.getMonth() - 1);
+    const prevMonthStr = now.toISOString().substr(0, 7); // e.g. "2026-03"
     
+    document.getElementById('prev-month-name').textContent = prevMonthStr;
+    
+    let prevTargetAmount = 0;
+    let prevAchievedAmount = 0;
+    
+    // Get the most recent target
+    const activeTargets = employee.targets ? employee.targets.filter(t => t.status === 'Active' || t.status === 'Completed') : [];
+    if (activeTargets.length > 0) {
+        prevTargetAmount = parseInt(activeTargets[activeTargets.length - 1].amount) || 0;
+    }
+    
+    // Calculate achieved in previous month
+    if (employee.role === 'passenger') {
+        prevAchievedAmount = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(prevMonthStr)).length;
+    } else if (employee.role === 'driver') {
+        const prevDriverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(prevMonthStr));
+        prevAchievedAmount = prevDriverInvoices.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
+        if (prevTargetAmount === 0) prevTargetAmount = prevDriverInvoices.length; // Driver default fallback
+    }
+    
+    const prevRate = prevTargetAmount > 0 ? (prevAchievedAmount / prevTargetAmount) * 100 : 0;
+    
+    document.getElementById('prev-target-amount').textContent = prevTargetAmount;
+    document.getElementById('prev-achieved-amount').textContent = prevAchievedAmount;
+    
+    const rateSpan = document.getElementById('prev-success-rate');
+    rateSpan.textContent = `${prevRate.toFixed(1)}%`;
+    rateSpan.style.color = prevRate >= 70 ? 'var(--status-paid)' : 'var(--status-unpaid)';
+
     // Show modal
     document.getElementById('assign-target-modal').style.display = 'block';
 }
+window.viewDriverProgress = function(employeeId) {
+    const employee = window.users.find(u => u.id === employeeId);
+    if (!employee) return;
+    
+    document.getElementById('dp-employee-name').textContent = employee.fullname || employee.username;
+    
+    // Calculate Previous Month
+    const now = new Date();
+    now.setMonth(now.getMonth() - 1);
+    const prevMonthStr = now.toISOString().substr(0, 7); // e.g. "2026-03"
+    
+    document.getElementById('dp-month-name').textContent = prevMonthStr;
+    
+    // Calculate achieved in previous month for driver
+    const prevDriverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(prevMonthStr));
+    const prevTargetAmount = prevDriverInvoices.length;
+    const prevAchievedAmount = prevDriverInvoices.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
+    
+    const prevRate = prevTargetAmount > 0 ? (prevAchievedAmount / prevTargetAmount) * 100 : 0;
+    
+    document.getElementById('dp-target-amount').textContent = prevTargetAmount;
+    document.getElementById('dp-achieved-amount').textContent = prevAchievedAmount;
+    
+    const rateSpan = document.getElementById('dp-success-rate');
+    rateSpan.textContent = `${prevRate.toFixed(1)}%`;
+    rateSpan.style.color = prevRate >= 70 ? 'var(--status-paid)' : 'var(--status-unpaid)';
 
+    document.getElementById('driver-progress-modal').style.display = 'block';
+};
+
+window.closeDriverProgressModal = function() {
+    document.getElementById('driver-progress-modal').style.display = 'none';
+};
 function closeAssignTargetModal() {
     document.getElementById('assign-target-modal').style.display = 'none';
     selectedEmployeeForTarget = null;
-    
-    // Clear form fields
     document.getElementById('target-amount-input').value = '';
-    document.getElementById('target-deadline').value = '';
 }
 function debugTargetAmountElement() {
     const element = document.getElementById('target-amount');
@@ -6343,10 +6495,9 @@ function assignTargetToEmployee() {
     }
 
     const amountValue = document.getElementById('target-amount-input').value.trim();
-    const deadlineValue = document.getElementById('target-deadline').value;
 
-    if (!amountValue || !deadlineValue) {
-        showNotification('Please fill all fields', 'error'); return;
+    if (!amountValue) {
+        showNotification('Please enter a target amount', 'error'); return;
     }
 
     const employee = users.find(u => u.id === selectedEmployeeForTarget);
@@ -6354,24 +6505,31 @@ function assignTargetToEmployee() {
 
     const newTarget = {
         id: generateId('target'),
-        amount: parseInt(amountValue), // Saving as Number of Profiles
-        deadline: deadlineValue,
-        status: 'Active',
+        amount: parseInt(amountValue),
+        status: 'Active', // Stays active forever until changed
         assignedDate: getCurrentDateTime().date,
         assignedBy: currentUser.id,
-        achievedAmount: 0 // We will calculate this dynamically based on created profiles
+        achievedAmount: 0 
     };
 
     // SAVE TO DATABASE
     if (window.updateDoc && window.db) {
         let currentTargets = employee.targets || [];
+        
+        // Mark all older targets as "Completed" so only the newest one is 'Active'
+        currentTargets.forEach(t => {
+            if (t.status === 'Active') t.status = 'Completed';
+        });
+        
         currentTargets.push(newTarget);
         window.updateDoc(window.doc(window.db, "users", employee.id), { targets: currentTargets });
-        window.sendSystemNotification(employee.id, `Admin assigned you a new target: ${amountValue} profiles`);
+        window.sendSystemNotification(employee.id, `Admin assigned you a new monthly recurring target: ${amountValue} profiles`);
     }
 
     closeAssignTargetModal();
-    showNotification(`Target assigned to ${employee.username}`, 'success');
+    showNotification(`Monthly recurring target assigned to ${employee.username}`, 'success');
+    
+    if (typeof renderAdminTargetsTable === "function") renderAdminTargetsTable();
 }
 
 function showPassengerSection(section) {
@@ -6644,10 +6802,38 @@ function renderEmployeesTable() {
                     ${isOnline ? 'Online' : 'Offline'}
                 </span>
             </td>
+            <td>
+                <button class="bubbles btn-small btn-danger" onclick="deleteEmployee('${user.id}')">
+                    <span class="text">Delete</span>
+                </button>
+            </td>
         `;
         tbody.appendChild(row);
     });
 }
+window.deleteEmployee = async function(employeeId) {
+    if (confirm("Are you sure you want to remove this employee? Their created profiles will remain in the system.")) {
+        if (window.deleteDoc && window.db) {
+            showLoader();
+            try {
+                // Delete only the user document from the database
+                await window.deleteDoc(window.doc(window.db, "users", employeeId));
+                
+                showNotification("Employee deleted successfully", "success");
+                
+                // Immediately remove from the local array to update the UI without waiting for a refresh
+                window.users = window.users.filter(u => u.id !== employeeId);
+                renderEmployeesTable();
+                
+            } catch (error) {
+                console.error("Error deleting employee:", error);
+                showNotification("Error deleting employee from database", "error");
+            } finally {
+                hideLoader();
+            }
+        }
+    }
+};
 function renderAdminDashboardSection() {
     const dashboardContainer = document.querySelector('#admin-dashboard-section');
     const tbody = document.querySelector('#admin-dashboard-table tbody');
@@ -6945,30 +7131,52 @@ function updatePickupStatus(profileId, newStatus) {
 
     let updates = { pickupStatus: newStatus };
     
+    // Clear the driver name by default if it's NOT a confirmed pickup
+    if (newStatus !== 'pickup confirmed') {
+        updates.actualPickupDriver = null; 
+    }
+    
     if (newStatus === 'canceled') {
         updates.cancelledDate = getCurrentDateTime().date;
         updates.paymentStatus = 'cancelled';
-    }
-    if (newStatus === 'pickup confirmed') {
+    } 
+    else if (newStatus === 'pickup confirmed') {
         updates.paymentStatus = 'unpaid';
-        updates.confirmedDate = getCurrentDateTime().date; // New field to track move to invoice section
+        updates.confirmedDate = getCurrentDateTime().date; 
+        
+        // Ask for driver name when confirming
+        const actualDriverName = prompt('Please enter the name of the driver who completed this pickup:');
+        if (actualDriverName && actualDriverName.trim() !== "") {
+            updates.actualPickupDriver = actualDriverName.trim();
+        } else {
+            // Abort if they cancel the prompt
+            showNotification('Pickup confirmation requires a driver name', 'error');
+            refreshAllTables(); 
+            return; 
+        }
     }
-    // 'booked' status just saves via the default updates object
 
     if (window.updateDoc && window.db) {
+        // Update local object immediately so the "View" modal reflects it without refresh
+        Object.assign(profile, updates);
+
         window.updateDoc(window.doc(window.db, "invoices", profileId), updates);
         showNotification(`Status updated to ${newStatus}`, 'success');
         
-        // --- NEW NOTIFICATION MODIFICATION START ---
-        if (profile.passengerId) { // Check if the profile has a creator ID
+        // Notification Logic
+        if (profile.passengerId) { 
             const heading = `New status of profile: ${newStatus.toUpperCase()}`;
-            const text = `your profile of ${profile.passengerName || 'Unknown'} is now in ${newStatus} status`;
+            let text = `your profile of ${profile.passengerName || 'Unknown'} is now in ${newStatus} status`;
+            
+            // Add driver name to notification only if it exists
+            if (updates.actualPickupDriver) {
+                 text += ` by Driver: ${updates.actualPickupDriver}`;
+            }
+            
             const notificationMessage = `<strong style="color: var(--accent); font-size: 1.1em;">${heading}</strong><br><span style="color: var(--text-main);">${text}</span>`;
             
-            // Send the notification to the creator
             window.sendSystemNotification(profile.passengerId, notificationMessage);
         }
-        // --- NEW NOTIFICATION MODIFICATION END ---
     }
 }
 
@@ -8724,22 +8932,40 @@ function confirmPickup(profileId) {
         return;
     }
     
-    if (confirm('Are you sure you want to confirm pickup for this passenger?')) {
+    // Prompt for the driver name instead of a simple confirm
+    const actualDriverName = prompt('Please enter the name of the driver who completed this pickup:');
+    
+    if (actualDriverName && actualDriverName.trim() !== "") {
+        const finalDriverName = actualDriverName.trim();
+        
+        // Update local object
         profile.pickupStatus = 'pickup confirmed';
         profile.paymentStatus = 'unpaid';
+        profile.actualPickupDriver = finalDriverName;
         
-        showNotification(`Pickup confirmed for profile ${profileId}`, 'success');
+        // Save to Database
+        if (window.updateDoc && window.db) {
+            window.updateDoc(window.doc(window.db, "invoices", profileId), {
+                pickupStatus: 'pickup confirmed',
+                paymentStatus: 'unpaid',
+                actualPickupDriver: finalDriverName
+            });
+        }
+        
+        showNotification(`Pickup confirmed! Driver ${finalDriverName} recorded.`, 'success');
+        
         // Notify the passenger
         if(profile.passengerId) {
-            window.sendSystemNotification(profile.passengerId, `Your pickup for Invoice #${profile.id} has been CONFIRMED by the driver.`);
+            window.sendSystemNotification(profile.passengerId, `Your pickup for Invoice #${profile.id} has been CONFIRMED by driver: ${finalDriverName}.`);
         }
 
         // Notify the Admin
-        window.sendSystemNotification('admin', `Driver confirmed pickup for Invoice #${profile.id} (Passenger: ${profile.passengerName}).`);
+        window.sendSystemNotification('admin', `Pickup confirmed for Invoice #${profile.id} by Driver: ${finalDriverName}.`);
+        
         renderDriverDashboardSection();
         renderDriverInvoicesTable();
         
-        if (users.find(u => u.role === 'admin' && u.loginTimes.length > u.logoutTimes.length)) {
+        if (window.users.find(u => u.role === 'admin' && u.loginTimes.length > u.logoutTimes.length)) {
             renderAdminProfilesTable();
             renderAdminInvoicesTable();
         }
@@ -9991,7 +10217,14 @@ function unassignDriverFromProfile(profileId) {
             document.getElementById('modal-driver-charges').textContent = (invoice.driverCharges || 0).toFixed(2);
             document.getElementById('modal-daily-budget').textContent = (invoice.dailyBudget || 0).toFixed(2);
             document.getElementById('modal-status').textContent = invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1);
-            
+            // NEW: Show or hide the actual pickup driver section
+            const actualDriverSection = document.getElementById('modal-actual-driver-section');
+            if (invoice.actualPickupDriver) {
+                document.getElementById('modal-actual-driver-name').textContent = invoice.actualPickupDriver;
+                actualDriverSection.style.display = 'block';
+            } else {
+                actualDriverSection.style.display = 'none';
+            }
             // Set location links
             const pickupLink = document.getElementById('modal-pickup-link');
             const dropoffLink = document.getElementById('modal-dropoff-link');
@@ -10185,8 +10418,8 @@ window.executePDFGeneration = function(invoiceId, customDriverName = null, isDri
         <header style="background-color: #062337 !important; padding: 20px 30px; display: flex; align-items: center;">
             <img src="https://i.ibb.co/Rk7xrLmp/Untitled-design-4.png" alt="Riventa Logo Icon" style="max-height: 75px; display: block; margin-right: 15px;">
             <div style="display: flex; flex-direction: column; line-height: 1.1;">
-                <span style="color: #55c4d1 !important; font-size: 28px; font-weight: bold; letter-spacing: 0.5px; background-color: transparent !important;">RIVENTA</span>
-                <span style="color: #00a8e8 !important; font-size: 28px; font-weight: bold; letter-spacing: 0.5px; background-color: transparent !important;">ENTERPRISES-PVT</span>
+                <span style="color: #55c4d1 !important; font-size: 28px; font-weight: bold; letter-spacing: 0.5px; background-color: transparent !important;">RAPID</span>
+                <span style="color: #00a8e8 !important; font-size: 28px; font-weight: bold; letter-spacing: 0.5px; background-color: transparent !important;">GLOBAL</span>
             </div>
         </header>
         <div style="height: 12px; background-color: #d1a115 !important; width: 100%;"></div>
@@ -10262,7 +10495,7 @@ window.executePDFGeneration = function(invoiceId, customDriverName = null, isDri
         </main>
 
         <footer style="background-color: #062337 !important; text-align: center; padding: 20px; color: #00b4d8 !important; font-size: 16px; margin-top: auto;">
-            Thank you for choosing RIVENTA ENTERPRISES
+            Thank you for choosing RAPID GLOBAL CARLIFT.
         </footer>
     </div>
     `;
@@ -10679,17 +10912,17 @@ window.dismissCenterNotifications = function() {
             </div>
             
             <div class="invoice-form">
-                <div class="form-row">
-                    <div class="inputbox">
-                        <input type="number" id="target-amount-input" step="1" required="required">
-                        <span>Target Number of Profiles</span>
-                        <i></i>
-                    </div>
-                    <div class="inputbox">
-                        <input type="date" id="target-deadline" required="required">
-                        <span>Deadline</span>
-                        <i></i>
-                    </div>
+                <div id="prev-month-progress" style="background: rgba(26, 29, 37, 0.8); padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid var(--status-assigned);">
+                    <h4 style="margin-bottom: 10px; color: var(--accent);">Previous Month Progress (<span id="prev-month-name"></span>)</h4>
+                    <p style="margin-bottom: 5px;"><strong>Target:</strong> <span id="prev-target-amount">0</span> Profiles</p>
+                    <p style="margin-bottom: 5px;"><strong>Achieved:</strong> <span id="prev-achieved-amount">0</span> Profiles</p>
+                    <p><strong>Success Rate:</strong> <span id="prev-success-rate">0%</span></p>
+                </div>
+                
+                <div class="inputbox">
+                    <input type="number" id="target-amount-input" step="1" required="required">
+                    <span>New Monthly Target (Auto-Renews)</span>
+                    <i></i>
                 </div>
                 
                 <div class="form-row">
@@ -10922,6 +11155,28 @@ window.dismissCenterNotifications = function() {
                 <div class="form-row">
                     <button class="bubbles btn-success" onclick="saveNewAccount()">
                         <span class="text">Save Account</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="driver-progress-modal" class="invoice-modal">
+        <div class="invoice-modal-content" style="max-width: 400px;">
+            <button class="close-modal" onclick="closeDriverProgressModal()">×</button>
+            <div class="invoice-header">
+                <h2>Previous Month Progress</h2>
+                <p id="dp-employee-name">Employee Name</p>
+            </div>
+            <div class="invoice-form">
+                <div style="background: rgba(26, 29, 37, 0.8); padding: 15px; border-radius: 8px; border-left: 4px solid var(--status-paid);">
+                    <h4 style="margin-bottom: 10px; color: var(--accent);">Month: <span id="dp-month-name"></span></h4>
+                    <p style="margin-bottom: 5px;"><strong>Assigned Profiles:</strong> <span id="dp-target-amount">0</span></p>
+                    <p style="margin-bottom: 5px;"><strong>Completed Profiles:</strong> <span id="dp-achieved-amount">0</span></p>
+                    <p><strong>Success Rate:</strong> <span id="dp-success-rate">0%</span></p>
+                </div>
+                <div style="margin-top: 20px; text-align: center;">
+                    <button class="bubbles btn-secondary" onclick="closeDriverProgressModal()">
+                        <span class="text">Close</span>
                     </button>
                 </div>
             </div>
