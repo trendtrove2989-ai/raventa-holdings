@@ -39,6 +39,17 @@
              margin-left: 8px;
              font-weight: 600;
          }
+.status-wrong-profile {
+    background: rgba(255, 69, 0, 0.15) !important;
+    border-color: rgba(255, 69, 0, 0.3) !important;
+    color: #ff4500 !important; /* Orange-Red */
+}
+
+.status-update-needed {
+    background: rgba(30, 144, 255, 0.15) !important;
+    border-color: rgba(30, 144, 255, 0.3) !important;
+    color: #1e90ff !important; /* Dodger Blue */
+}
 .driver-item {
     display: flex;
     justify-content: space-between;
@@ -5904,7 +5915,9 @@ function fixDropdownPositioning() {
                 case 'pickup confirmed': return 'status-paid';
                 case 'canceled': return 'status-unpaid';
                 case 'booked': return 'status-unassigned';
-                case 'working': return 'status-working'; // This matches your purple CSS class
+                case 'working': return 'status-working';
+                case 'wrong profile': return 'status-wrong-profile';
+                case 'update needed': return 'status-update-needed';
                 default: return 'status-default';
             }
         }
@@ -5915,6 +5928,8 @@ function fixDropdownPositioning() {
                 case 'canceled': return 'Canceled';
                 case 'booked': return 'Booked';
                 case 'working': return 'Working';
+                case 'wrong profile': return 'Wrong Profile';
+                case 'update needed': return 'Update Needed';
                 default: return 'Not Yet';
             }
         }
@@ -7043,13 +7058,15 @@ function renderAdminProfilesTable() {
                         <span>${pickupStatusText}</span>
                         <span>▼</span>
                     </div>
-                    <div class="table-choice-options">
-                        <div class="table-choice-option" data-value="no status yet">Not Yet</div>
-                        <div class="table-choice-option" data-value="booked">Booked</div> 
-                        <div class="table-choice-option" data-value="working">Working</div>
-                        <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
-                        <div class="table-choice-option" data-value="canceled">Canceled</div>
-                    </div>
+                        <div class="table-choice-options">
+                            <div class="table-choice-option" data-value="no status yet">Not Yet</div>
+                            <div class="table-choice-option" data-value="booked">Booked</div> 
+                            <div class="table-choice-option" data-value="working">Working</div>
+                            <div class="table-choice-option" data-value="pickup confirmed">Pickup Confirmed</div>
+                            <div class="table-choice-option" data-value="canceled">Canceled</div>
+                            <div class="table-choice-option" data-value="wrong profile">Wrong Profile</div>
+                            <div class="table-choice-option" data-value="update needed">Update Needed</div>
+                        </div>
                 </div>
             </td>
             <td>
