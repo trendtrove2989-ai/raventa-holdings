@@ -1612,7 +1612,8 @@ th, td {
         <button class="nav-btn" onclick="showAdminSection('split')">Split Profile</button>
         <button class="nav-btn" onclick="showAdminSection('finance')">Finance </button>
         <button class="nav-btn" onclick="showAdminSection('attendance')">Attendance</button>
-    </div>
+        <button class="nav-btn" onclick="showAdminSection('settings')">Settings</button>
+    </div>
 
 
             <!-- Employees Section -->
@@ -2403,16 +2404,27 @@ th, td {
                 </div>
             </div>
             <!-- Settings Section -->
+            <!-- Settings Section -->
             <div id="admin-settings" class="section">
                 <h3>Admin Settings</h3>
-                <div class="invoice-form">
-                    <h4>Change Password</h4>
+                <div class="invoice-form" style="max-width: 500px;">
+                    <h4 style="color: var(--accent); margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">Change Password</h4>
                     <div class="inputbox">
-                        <input type="password" id="admin-new-password" required="required">
+                        <input type="password" id="admin-old-password" required="required">
+                        <span>Current Password</span>
+                        <i></i>
+                    </div>
+                    <div class="inputbox">
+                        <input type="password" id="admin-new-password-secure" required="required">
                         <span>New Password</span>
                         <i></i>
                     </div>
-                    <button class="bubbles" onclick="changePassword('admin')">
+                    <div class="inputbox">
+                        <input type="password" id="admin-confirm-password" required="required">
+                        <span>Confirm New Password</span>
+                        <i></i>
+                    </div>
+                    <button class="bubbles btn-success" onclick="secureAdminPasswordChange()">
                         <span class="text">Update Password</span>
                     </button>
                 </div>
@@ -6716,7 +6728,67 @@ function changePassword(userType) {
         }
     }, 1000);
 }
-
+window.secureAdminPasswordChange = function() {
+    showLoader();
+    
+    setTimeout(() => {
+        const oldPassword = document.getElementById('admin-old-password').value;
+        const newPassword = document.getElementById('admin-new-password-secure').value.trim();
+        const confirmPassword = document.getElementById('admin-confirm-password').value.trim();
+        
+        // 1. Validate fields are not empty
+        if (!oldPassword || !newPassword || !confirmPassword) {
+            showNotification('Please fill in all password fields', 'error');
+            hideLoader();
+            return;
+        }
+        
+        // 2. Verify current password
+        if (oldPassword !== currentUser.password) {
+            showNotification('Current password is incorrect', 'error');
+            hideLoader();
+            return;
+        }
+        
+        // 3. Check if new passwords match
+        if (newPassword !== confirmPassword) {
+            showNotification('New passwords do not match', 'error');
+            hideLoader();
+            return;
+        }
+        
+        // 4. Validate password length
+        if (newPassword.length < 6) {
+            showNotification('Password must be at least 6 characters long', 'error');
+            hideLoader();
+            return;
+        }
+        
+        // 5. Save permanently to Firebase Database
+        if (window.updateDoc && window.db) {
+            window.updateDoc(window.doc(window.db, "users", currentUser.id), {
+                password: newPassword
+            }).then(() => {
+                currentUser.password = newPassword; // Update local state
+                
+                // Clear fields
+                document.getElementById('admin-old-password').value = '';
+                document.getElementById('admin-new-password-secure').value = '';
+                document.getElementById('admin-confirm-password').value = '';
+                
+                showNotification('Password updated successfully in database', 'success');
+                hideLoader();
+            }).catch(error => {
+                console.error("Error updating password in DB:", error);
+                showNotification('Error saving password to database', 'error');
+                hideLoader();
+            });
+        } else {
+            showNotification('Database connection not available', 'error');
+            hideLoader();
+        }
+    }, 500);
+};
 
 
 function renderAdminDashboard() {
