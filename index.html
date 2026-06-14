@@ -5975,8 +5975,6 @@ function login() {
     showLoader();
     
     setTimeout(() => {
-        
-
         const username = document.getElementById('login-username').value.trim();
         const password = document.getElementById('login-password').value.trim();
         
@@ -5991,50 +5989,55 @@ function login() {
         if (user) {
             currentUser = user;
             
-            // --- FIX START: Save Login Time to Database ---
+            // Save Login Time to Database
             const newLoginTime = new Date().toISOString();
-            
-            // 1. Update local array immediately for UI responsiveness
             if (!user.loginTimes) user.loginTimes = [];
             user.loginTimes.push(newLoginTime);
 
-            // 2. Send update to Firebase so Admin sees it instantly
             if (window.updateDoc && window.db) {
                 window.updateDoc(window.doc(window.db, "users", user.id), { 
                     loginTimes: user.loginTimes 
                 }).catch(err => console.error("Failed to update online status:", err));
             }
-            // --- FIX END ---
-
-            hideAllSections();
             
+            // Check roles
             switch (user.role) {
                 case 'admin':
-                    document.getElementById('admin-dashboard').classList.add('active');
-                    document.getElementById('admin-welcome').textContent = `Welcome, ${user.username}`;
-                    showAdminSection('profiles');
+                    // CRITICAL FIX: Kill the loading screens first so the modal isn't trapped underneath!
+                    hideLoader(); 
+                    // Open the warning modal safely on top of the regular login layout
+                    document.getElementById('admin-warning-modal').style.display = 'block';
                     break;
                 case 'passenger':
+                    hideAllSections();
+                    document.body.classList.add('app-logged-in');
+                    document.body.classList.remove('login-background');
                     document.getElementById('passenger-dashboard').classList.add('active');
                     document.getElementById('passenger-welcome').textContent = `Welcome, ${user.username}`;
                     renderPassengerDashboard();
+                    hideLoader();
                     break;
                 case 'driver':
+                    hideAllSections();
+                    document.body.classList.add('app-logged-in');
+                    document.body.classList.remove('login-background');
                     document.getElementById('driver-dashboard').classList.add('active');
                     document.getElementById('driver-welcome').textContent = `Welcome, ${user.username}`;
                     renderDriverDashboard();
+                    hideLoader();
                     break;
             }
             
+            refreshProfileUI();
             showNotification(`Welcome back, ${user.username}!`, 'success');
             if (window.checkLoginNotifications) window.checkLoginNotifications();
         } else {
             showNotification('Invalid username or password', 'error');
+            hideLoader();
         }
         
         document.getElementById('login-username').value = '';
         document.getElementById('login-password').value = '';
-        hideLoader();
     }, 1500);
 }
 
@@ -11095,6 +11098,20 @@ window.dismissCenterNotifications = function() {
             </button>
         </div>
     </div>
+    <div id="admin-warning-modal" class="invoice-modal" style="z-index: 3500; display: none;">
+        <div class="invoice-modal-content" style="max-width: 550px; text-align: center; border: 2px solid var(--status-unpaid); box-shadow: 0 0 30px rgba(220, 38, 38, 0.4); padding: 40px 30px;">
+            <div style="font-size: 4rem; margin-bottom: 15px;">⚠️</div>
+            <div class="invoice-header" style="border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px;">
+                <h2 style="color: var(--status-unpaid); font-size: 1.8rem; font-weight: 800; letter-spacing: 0.5px;">CRITICAL SYSTEM WARNING</h2>
+            </div>
+            <p style="font-size: 1.15rem; line-height: 1.6; color: var(--text-main); font-weight: 600; margin-bottom: 30px;">
+                Your database is going to be full soon.<br>Please renew your database on time!
+            </p>
+            <button class="bubbles btn-danger" onclick="document.getElementById('admin-warning-modal').style.display = 'none'; hideAllSections(); document.body.classList.add('app-logged-in'); document.body.classList.remove('login-background'); document.getElementById('admin-dashboard').classList.add('active'); document.getElementById('admin-welcome').textContent = 'Welcome, ' + (currentUser ? currentUser.username : 'Admin'); showAdminSection('profiles');">
+                <span class="text">Acknowledge & Proceed</span>
+            </button>
+        </div>
+    </div>    
     <div id="add-stakeholder-modal" class="invoice-modal">
         <div class="invoice-modal-content" style="max-width: 500px;">
             <button class="close-modal" onclick="closeStakeholderModal()">×</button>
