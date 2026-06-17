@@ -4267,7 +4267,7 @@ tbody tr:hover td {
         <button type="button" class="sidebar-settings-btn" onclick="openPasswordSettingsModal()" title="Password settings" aria-label="Password settings">⚙</button>
     </div>
     <!-- Home Section -->
-    <div id="driver-home" class="section active">
+    <div id="driver-home" class="section">
         <h3>Quick Links</h3>
         <div class="social-links">
             <a href="https://wa.me/" target="whatsapp_tab" class="social-link" style="background: #25D366;">📱 WhatsApp</a>
@@ -7366,13 +7366,34 @@ function login() {
             document.body.classList.add('app-logged-in');
             document.body.classList.remove('login-background');
             
-            switch (user.role) {
-                case 'admin':
-                    document.getElementById('admin-dashboard').classList.add('active');
-                    document.getElementById('admin-welcome').textContent = `Welcome, ${user.username}`;
-                    showAdminSection('profiles');
-                    break;
-                case 'passenger':
+        switch (user.role) {
+                    case 'admin':
+                        document.getElementById('admin-dashboard').classList.add('active');
+                        document.getElementById('admin-welcome').textContent = `Welcome, ${user.username}`;
+                        showAdminSection('profiles');                            
+                        // --- BIG WARNING MESSAGE FOR ADMIN ---
+                        setTimeout(() => {
+                            const warningModal = document.createElement('div');
+                            warningModal.className = 'invoice-modal';
+                            warningModal.style.display = 'block';
+                            warningModal.style.zIndex = '9999'; // Ensure it's on top of everything
+                            warningModal.innerHTML = `
+                                <div class="invoice-modal-content" style="max-width: 500px; text-align: center; border: 2px solid #ff0057; box-shadow: 0 0 40px rgba(255, 0, 87, 0.3);">
+                                    <div style="font-size: 50px; margin-bottom: 10px;">⚠️</div>
+                                    <h2 style="color: #ff0057; margin-bottom: 15px; font-size: 26px; font-weight: bold;">CRITICAL WARNING</h2>
+                                    <p style="font-size: 18px; color: var(--text-main); margin-bottom: 25px; line-height: 1.5;">
+                                        Your database is going to be full.<br>
+                                        <strong>Please renew it immediately.</strong>
+                                    </p>
+                                    <button class="bubbles btn-danger" onclick="this.closest('.invoice-modal').remove()" style="width: 100%;">
+                                        <span class="text">I Understand</span>
+                                    </button>
+                                </div>
+                            `;
+                            document.body.appendChild(warningModal);
+                        }, 500); // 500ms delay so it pops up smoothly after the dashboard renders
+                        break;
+                    case 'passenger':
                     document.getElementById('passenger-dashboard').classList.add('active');
                     document.getElementById('passenger-welcome').textContent = `Welcome, ${user.username}`;
                     renderPassengerDashboard();
@@ -8204,12 +8225,11 @@ function renderPassengerDashboard() {
 }
 
 function renderDriverDashboard() {
-    renderDriverDashboardSection();
+    showDriverSection('dashboard'); // Ensures the dashboard tab is activated and others are hidden
     updateDriverStats();
     renderDriverInvoicesTable();
     renderDriverEarnings();
     renderDriverSettings();
-    
 }
 
         // Admin Dashboard Functions
