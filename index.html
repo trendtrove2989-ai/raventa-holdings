@@ -5751,20 +5751,21 @@ function calculateEmployeeSalary(employeeId) {
     // 2. Calculate Achievement for the month
     let performanceRate = 0;
     
+    const userTargets = employee.targets || [];
+    const monthlyTargets = userTargets.filter(t => t.status === 'Active');
+    const totalTargetGoal = monthlyTargets.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
+    
+    let totalAchievedSoFar = 0;
     if (employee.role === 'passenger') {
-        const userTargets = employee.targets || [];
-        // Pull the currently active target, regardless of what month it was assigned
-        const monthlyTargets = userTargets.filter(t => t.status === 'Active');
-        if (monthlyTargets.length > 0) {
-            const totalTargetGoal = monthlyTargets.reduce((sum, t) => sum + (parseInt(t.amount) || 0), 0);
-            const totalAchievedSoFar = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonthStr)).length;
-            if (totalTargetGoal > 0) performanceRate = (totalAchievedSoFar / totalTargetGoal);
-        }
+        const empInvoices = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+        totalAchievedSoFar = empInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
     } else if (employee.role === 'driver') {
-        const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
-        const totalTargetGoal = driverInvoices.length;
-        const totalAchievedSoFar = driverInvoices.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
-        if (totalTargetGoal > 0) performanceRate = (totalAchievedSoFar / totalTargetGoal);
+        const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+        totalAchievedSoFar = driverInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
+    }
+
+    if (totalTargetGoal > 0) {
+        performanceRate = (totalAchievedSoFar / totalTargetGoal);
     }
 
     // 3. AUTOMATIC BONUS RULE: 
@@ -6292,16 +6293,26 @@ document.getElementById('finance-month-filter').addEventListener('change', funct
 });
 
 function updateEmployeeMonthlyGross(employeeId) {
-    const employee = users.find(u => u.id === employeeId);
-    if (!employee) return;
-    
-    const userTargets = employee.targets || [];
-    const activeTargets = userTargets.filter(target => target.status === 'Active');
-    const completedTargets = userTargets.filter(target => target.status === 'Completed');
-    
-    const assignedAmount = activeTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
-    const achievedAmount = completedTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
-    const progressPercent = assignedAmount > 0 ? (achievedAmount / assignedAmount) * 100 : 0;
+        const employee = users.find(u => u.id === employeeId);
+        if (!employee) return;
+        
+        const userTargets = employee.targets || [];
+        const activeTargets = userTargets.filter(target => target.status === 'Active');
+        
+        const assignedAmount = activeTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
+        
+        const currentMonthStr = getCurrentMonth();
+        let achievedAmount = 0;
+        
+        if (currentUser.role === 'passenger') {
+            const empInvoices = window.invoices.filter(inv => inv.passengerId === employeeId && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+            achievedAmount = empInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
+        } else if (currentUser.role === 'driver') {
+            const driverInvoices = window.invoices.filter(inv => inv.driverId === employeeId && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+            achievedAmount = driverInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
+        }
+        
+        const progressPercent = assignedAmount > 0 ? (achievedAmount / assignedAmount) * 100 : 0;
     
     // Update the monthly gross section if this employee is currently logged in
     if (currentUser && currentUser.id === employeeId) {
@@ -6348,8 +6359,9 @@ function renderDriverMonthlyGross() {
     const activeTargets = userTargets.filter(t => t.status === 'Active');
     const monthlyTarget = activeTargets.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0) || 1000;
 
-    // Achieved is total financial amount paid by the driver
-    const achievedAmount = monthDriverProfiles.reduce((sum, inv) => sum + (inv.driverAmountPaid || 0), 0);
+    // Achieved is total financial AED amount (excluding canceled profiles)
+    const validProfiles = monthDriverProfiles.filter(inv => inv.pickupStatus !== 'canceled');
+    const achievedAmount = validProfiles.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
     
     // Calculate achievement rate
     const achievementRate = monthlyTarget > 0 ? (achievedAmount / monthlyTarget) * 100 : 0;
@@ -7779,11 +7791,11 @@ function renderAdminTargetsTable() {
         assignedAmount = activeTargets.reduce((sum, t) => sum + (parseFloat(t.amount) || 0), 0);
 
         if (employee.role === 'passenger') {
-            const empInvoices = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonthStr));
-            achievedAmount = empInvoices.reduce((sum, inv) => sum + (inv.passengerAmountPaid || 0), 0);
+            const empInvoices = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+            achievedAmount = empInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
         } else if (employee.role === 'driver') {
-            const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
-            achievedAmount = driverInvoices.reduce((sum, inv) => sum + (inv.driverAmountPaid || 0), 0);
+            const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+            achievedAmount = driverInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
         }
         
         const progressPercent = assignedAmount > 0 ? (achievedAmount / assignedAmount) * 100 : 0;
@@ -7857,19 +7869,16 @@ function searchEmployees() {
         let assignedAmount = 0;
         let achievedAmount = 0;
 
+        const assignedTargets = employee.targets || [];
+        const activeTargets = assignedTargets.filter(target => target.status === 'Active');
+        assignedAmount = activeTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
+
         if (employee.role === 'passenger') {
-            const assignedTargets = employee.targets || [];
-            const activeTargets = assignedTargets.filter(target => target.status === 'Active');
-            assignedAmount = activeTargets.reduce((sum, target) => sum + (parseInt(target.amount) || 0), 0);
-            
-            if (activeTargets.length > 0) {
-                const targetMonth = activeTargets[0].assignedDate.substr(0, 7);
-                achievedAmount = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(targetMonth)).length;
-            }
+            const empInvoices = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+            achievedAmount = empInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
         } else if (employee.role === 'driver') {
-            const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr));
-            assignedAmount = driverInvoices.length;
-            achievedAmount = driverInvoices.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
+            const driverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+            achievedAmount = driverInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
         }
         
         const progressPercent = assignedAmount > 0 ? (achievedAmount / assignedAmount) * 100 : 0;
@@ -7913,10 +7922,19 @@ function updateEmployeeMonthlyGross() {
     
     const userTargets = currentUser.targets || [];
     const activeTargets = userTargets.filter(target => target.status === 'Active');
-    const completedTargets = userTargets.filter(target => target.status === 'Completed');
     
     const assignedAmount = activeTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
-    const achievedAmount = completedTargets.reduce((sum, target) => sum + (parseFloat(target.amount) || 0), 0);
+    
+    const currentMonthStr = getCurrentMonth();
+    let achievedAmount = 0;
+    
+    if (currentUser.role === 'passenger') {
+        const empInvoices = window.invoices.filter(inv => inv.passengerId === currentUser.id && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+        achievedAmount = empInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
+    } else if (currentUser.role === 'driver') {
+        const driverInvoices = window.invoices.filter(inv => inv.driverId === currentUser.id && inv.date.startsWith(currentMonthStr) && inv.pickupStatus !== 'canceled');
+        achievedAmount = driverInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
+    }
     
     // Update the monthly gross section based on user role
     if (currentUser.role === 'passenger') {
@@ -7967,11 +7985,11 @@ function openAssignTargetModal(employeeId) {
     
     // Calculate achieved in previous month financially
     if (employee.role === 'passenger') {
-        const prevInvoices = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(prevMonthStr));
-        prevAchievedAmount = prevInvoices.reduce((sum, inv) => sum + (inv.passengerAmountPaid || 0), 0);
+        const prevInvoices = window.invoices.filter(inv => inv.passengerId === employee.id && inv.date.startsWith(prevMonthStr) && inv.pickupStatus !== 'canceled');
+        prevAchievedAmount = prevInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
     } else if (employee.role === 'driver') {
-        const prevDriverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(prevMonthStr));
-        prevAchievedAmount = prevDriverInvoices.reduce((sum, inv) => sum + (inv.driverAmountPaid || 0), 0);
+        const prevDriverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(prevMonthStr) && inv.pickupStatus !== 'canceled');
+        prevAchievedAmount = prevDriverInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
     }
     
     const prevRate = prevTargetAmount > 0 ? (prevAchievedAmount / prevTargetAmount) * 100 : 0;
@@ -7999,10 +8017,16 @@ window.viewDriverProgress = function(employeeId) {
     
     document.getElementById('dp-month-name').textContent = prevMonthStr;
     
-    // Calculate achieved in previous month for driver
-    const prevDriverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(prevMonthStr));
-    const prevTargetAmount = prevDriverInvoices.length;
-    const prevAchievedAmount = prevDriverInvoices.filter(inv => inv.pickupStatus === 'booked' || inv.paymentStatus === 'paid').length;
+    // Calculate achieved in previous month for driver (AED based)
+    const prevDriverInvoices = window.invoices.filter(inv => inv.driverId === employee.id && inv.date.startsWith(prevMonthStr) && inv.pickupStatus !== 'canceled');
+    
+    const activeTargets = employee.targets ? employee.targets.filter(t => t.status === 'Active' || t.status === 'Completed') : [];
+    let prevTargetAmount = 0;
+    if (activeTargets.length > 0) {
+        prevTargetAmount = parseFloat(activeTargets[activeTargets.length - 1].amount) || 0;
+    }
+    
+    const prevAchievedAmount = prevDriverInvoices.reduce((sum, inv) => sum + (parseFloat(inv.totalBudget) || 0), 0);
     
     const prevRate = prevTargetAmount > 0 ? (prevAchievedAmount / prevTargetAmount) * 100 : 0;
     
