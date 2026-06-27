@@ -131,33 +131,35 @@
     box-shadow: 0 4px 6px rgba(0,0,0,0.1);
 }
 .previous-pending-toggle {
-    background: rgba(255, 204, 0, 0.15);
-    border: 1px solid #ffcc00;
-    color: #ffcc00;
-    padding: 15px;
-    border-radius: 10px;
-    cursor: pointer;
-    margin-bottom: 10px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    font-weight: bold;
-}
+            background: #dc2626; /* Solid red background */
+            border: 1px solid #b91c1c;
+            color: #ffffff; /* White text */
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(220, 38, 38, 0.3);
+            transition: background 0.2s;
+        }
 
-.previous-pending-toggle:hover {
-    background: rgba(255, 204, 0, 0.2);
-}
+        .previous-pending-toggle:hover {
+            background: #b91c1c;
+        }
 
-/* Styling for the hidden container */
-.previous-pending-container {
-    display: none; /* Hidden by default */
-    margin-bottom: 20px;
-    background: var(--surface-card);
-    border: 1px dashed #ffcc00;
-    color: var(--text-main);
-    border-radius: 10px;
-    padding: 10px;
-}
+        /* Styling for the hidden container */
+        .previous-pending-container {
+            display: none; /* Hidden by default */
+            margin-bottom: 20px;
+            background: var(--surface-card);
+            border: 2px dashed #dc2626; /* Red matching border */
+            color: var(--text-main);
+            border-radius: 10px;
+            padding: 10px;
+        }
 
 .previous-pending-container.active {
     display: block;
@@ -7460,27 +7462,6 @@ function fixDropdownPositioning() {
                 
                 refreshProfileUI();
                 
-                // --- NEW BLOCKING MODAL FOR EVERYONE ---
-                setTimeout(() => {
-                    const warningModal = document.createElement('div');
-                    warningModal.className = 'invoice-modal';
-                    warningModal.style.display = 'block';
-                    warningModal.style.zIndex = '9999'; 
-                    warningModal.innerHTML = `
-                        <div class="invoice-modal-content" style="max-width: 500px; text-align: center; border: 2px solid #ff0057; box-shadow: 0 0 40px rgba(255, 0, 87, 0.3);">
-                            <div style="font-size: 50px; margin-bottom: 10px;">⚠️</div>
-                            <h2 style="color: #ff0057; margin-bottom: 15px; font-size: 26px; font-weight: bold;">ACCESS DENIED</h2>
-                            <p style="font-size: 18px; color: var(--text-main); margin-bottom: 25px; line-height: 1.5;">
-                                <strong>data base is full renew to login</strong>
-                            </p>
-                            <button class="bubbles btn-danger" onclick="this.closest('.invoice-modal').remove(); logout();" style="width: 100%;">
-                                <span class="text">Return to Login</span>
-                            </button>
-                        </div>
-                    `;
-                    document.body.appendChild(warningModal);
-                }, 500);
-                
             } catch (error) {
                 console.error("Google Sign-in Error:", error);
                 showNotification("Google Sign-In failed or was cancelled.", "error");
@@ -7564,26 +7545,6 @@ function login() {
             
             refreshProfileUI();
             
-            // --- NEW BLOCKING MODAL FOR EVERYONE ---
-            setTimeout(() => {
-                const warningModal = document.createElement('div');
-                warningModal.className = 'invoice-modal';
-                warningModal.style.display = 'block';
-                warningModal.style.zIndex = '9999'; // Ensure it's on top of everything
-                warningModal.innerHTML = `
-                    <div class="invoice-modal-content" style="max-width: 500px; text-align: center; border: 2px solid #ff0057; box-shadow: 0 0 40px rgba(255, 0, 87, 0.3);">
-                        <div style="font-size: 50px; margin-bottom: 10px;">⚠️</div>
-                        <h2 style="color: #ff0057; margin-bottom: 15px; font-size: 26px; font-weight: bold;">ACCESS DENIED</h2>
-                        <p style="font-size: 18px; color: var(--text-main); margin-bottom: 25px; line-height: 1.5;">
-                            <strong>data base is full renew to login</strong>
-                        </p>
-                        <button class="bubbles btn-danger" onclick="this.closest('.invoice-modal').remove(); logout();" style="width: 100%;">
-                            <span class="text">Return to Login</span>
-                        </button>
-                    </div>
-                `;
-                document.body.appendChild(warningModal);
-            }, 500);
         } else {
             showNotification('Invalid username or password', 'error');
         }
@@ -8505,22 +8466,22 @@ function renderAdminDashboardSection() {
     // 2. Main Table Data: Profiles created in the SELECTED month
     const currentMonthProfiles = invoices.filter(inv => inv.date.startsWith(selectedMonthStr));
     
-    // 3. LEGACY Data: Profiles from ANY month BEFORE the REAL current month that are still 'no status yet'
+    // 3. LEGACY Data: Profiles from ANY month BEFORE the REAL current month that are strictly NOT booked or confirmed
     const previousPendingProfiles = invoices.filter(inv => {
         const invMonth = inv.date.substr(0, 7);
+        const status = inv.pickupStatus || 'no status yet';
         return invMonth < realCurrentMonth && 
-               (inv.pickupStatus === 'no status yet' || !inv.pickupStatus || inv.pickupStatus === 'booked');
+               (status !== 'pickup confirmed' && status !== 'booked' && status !== 'canceled');
     });
 
     // 4. Create the "Previous Profiles" Toggle Button
-    // We show this regardless of the filter, as long as there are pending profiles
     if (previousPendingProfiles.length > 0) {
         const toggleBtn = document.createElement('div');
         toggleBtn.id = 'prev-pending-toggle-btn';
         toggleBtn.className = 'previous-pending-toggle';
         toggleBtn.innerHTML = `
-            <span>⚠️ Outstanding Profiles from Previous Months (${previousPendingProfiles.length})</span>
-            <span id="toggle-icon" style="background: var(--status-unassigned); color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.8em;">View List ▼</span>
+            <span>⚠️ Previous Month Remaining Profiles (${previousPendingProfiles.length})</span>
+            <span id="toggle-icon" style="background: #ffffff; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;">View List ▼</span>
         `;
         
         const pendingContainer = document.createElement('div');
@@ -8633,9 +8594,87 @@ window.filterAdminProfilesByStatus = function(status, btnElement) {
 };
 
 function renderAdminProfilesTable() {
+    const dashboardContainer = document.getElementById('admin-profiles');
     const tbody = document.querySelector('#admin-profiles-table tbody');
+    if (!tbody || !dashboardContainer) return;
+    
+    // Clean up old UI elements to prevent duplicates
+    const oldToggle = document.getElementById('prev-pending-toggle-btn-admin');
+    if (oldToggle) oldToggle.remove();
+    const oldContainer = document.getElementById('prev-pending-container-admin');
+    if (oldContainer) oldContainer.remove();
+    
     tbody.innerHTML = '';
     
+    const realDate = new Date();
+    const realCurrentMonth = realDate.toISOString().substr(0, 7); 
+    
+    // PREVIOUS PENDING LOGIC FOR ADMIN
+    const previousPendingProfiles = invoices.filter(inv => {
+        const invMonth = inv.date.substr(0, 7);
+        const status = inv.pickupStatus || 'no status yet';
+        return invMonth < realCurrentMonth && 
+               (status !== 'pickup confirmed' && status !== 'canceled' && status !== 'booked');
+    });
+
+    // ALWAYS SHOW THE RED BAR
+    const toggleBtn = document.createElement('div');
+    toggleBtn.id = 'prev-pending-toggle-btn-admin';
+    toggleBtn.className = 'previous-pending-toggle';
+    toggleBtn.innerHTML = `
+        <span>⚠️ Previous Month Remaining Profiles (${previousPendingProfiles.length})</span>
+        <span id="toggle-icon-admin" style="background: #ffffff; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;">View List ▼</span>
+    `;
+    
+    const pendingContainer = document.createElement('div');
+    pendingContainer.id = 'prev-pending-container-admin';
+    pendingContainer.className = 'previous-pending-container';
+    
+    pendingContainer.innerHTML = `
+        <table style="width:100%; border-collapse: collapse; background: rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden;">
+            <thead style="background: rgba(220, 38, 38, 0.15);">
+                <tr>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Name</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Month</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Status</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="prev-pending-tbody-admin"></tbody>
+        </table>
+    `;
+
+    dashboardContainer.insertBefore(toggleBtn, dashboardContainer.querySelector('.table-container'));
+    dashboardContainer.insertBefore(pendingContainer, dashboardContainer.querySelector('.table-container'));
+
+    const pendingTbody = document.getElementById('prev-pending-tbody-admin');
+    
+    if (previousPendingProfiles.length === 0) {
+        pendingTbody.innerHTML = `<tr><td colspan="4" style="padding: 15px; text-align: center; color: var(--text-secondary);">No remaining profiles from previous months.</td></tr>`;
+    } else {
+        previousPendingProfiles.forEach(profile => {
+            const pRow = document.createElement('tr');
+            pRow.style.borderBottom = "1px solid var(--border-color)";
+            const statusText = profile.pickupStatus || 'Not Yet';
+            pRow.innerHTML = `
+                <td style="padding: 10px; color: var(--text-main);">${profile.passengerName || 'N/A'}</td>
+                <td style="padding: 10px; color: var(--text-secondary); font-size: 0.9em;">${profile.date.substr(0, 7)}</td>
+                <td style="padding: 10px;"><span class="status-badge status-unassigned">${statusText}</span></td>
+                <td style="padding: 10px;">
+                    <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
+                        <span class="text">View</span>
+                    </button>
+                </td>
+            `;
+            pendingTbody.appendChild(pRow);
+        });
+    }
+
+    toggleBtn.onclick = () => {
+        const isActive = pendingContainer.classList.toggle('active');
+        document.getElementById('toggle-icon-admin').textContent = isActive ? 'Hide List ▲' : 'View List ▼';
+    };
+
     // MASTER LIST: We take ALL invoices
     const allProfiles = invoices; 
     
@@ -8707,12 +8746,10 @@ function renderAdminProfilesTable() {
                     <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
                         <span class="text">View</span>
                     </button>
-                    ${currentDriverDashStatusFilter === 'pickup confirmed' ? `
+                    ${currentAdminProfilesStatusFilter === 'pickup confirmed' ? `
                     <button class="bubbles btn-small" style="--c2: #0ea5e9;" onclick="openTrackerModal('${profile.id}')">
                         <span class="text">Track Pickups</span>
                     </button>
-                    
-                    
                     ` : ''}
                 </div>
             </td>
@@ -10324,20 +10361,96 @@ window.filterPassengerProfilesByStatus = function(status, btnElement) {
 };
 
 function renderPassengerDashboardSection() {
+    const dashboardContainer = document.querySelector('#passenger-dashboard-section');
     const tbody = document.querySelector('#passenger-dashboard-table tbody');
-    if (!tbody) return;
+    if (!tbody || !dashboardContainer) return;
+
+    // Clean up old UI elements to prevent duplicates
+    const oldToggle = document.getElementById('prev-pending-toggle-btn-passenger');
+    if (oldToggle) oldToggle.remove();
+    const oldContainer = document.getElementById('prev-pending-container-passenger');
+    if (oldContainer) oldContainer.remove();
     
     tbody.innerHTML = '';
+
+    const realDate = new Date();
+    const realCurrentMonth = realDate.toISOString().substr(0, 7); 
     
-    // 1. Get ALL profiles and filter by the selected month
-    let allProfiles = invoices.filter(inv => inv.date.startsWith(currentPassengerDashMonth));
+    // PREVIOUS PENDING LOGIC FOR PASSENGER
+    const previousPendingProfiles = invoices.filter(inv => {
+        const invMonth = inv.date.substr(0, 7);
+        const status = inv.pickupStatus || 'no status yet';
+        return invMonth < realCurrentMonth && 
+               inv.passengerId === currentUser.id && 
+               (status !== 'pickup confirmed' && status !== 'booked' && status !== 'canceled');
+    });
+
+    // ALWAYS SHOW RED BAR
+    const toggleBtn = document.createElement('div');
+    toggleBtn.id = 'prev-pending-toggle-btn-passenger';
+    toggleBtn.className = 'previous-pending-toggle';
+    toggleBtn.innerHTML = `
+        <span>⚠️ Previous Month Remaining Profiles (${previousPendingProfiles.length})</span>
+        <span id="toggle-icon-passenger" style="background: #ffffff; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;">View List ▼</span>
+    `;
     
-    // 2. Filter by selected status AND limit to the current user's profiles
+    const pendingContainer = document.createElement('div');
+    pendingContainer.id = 'prev-pending-container-passenger';
+    pendingContainer.className = 'previous-pending-container';
+    
+    pendingContainer.innerHTML = `
+        <table style="width:100%; border-collapse: collapse; background: rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden;">
+            <thead style="background: rgba(220, 38, 38, 0.15);">
+                <tr>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Name</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Month</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Status</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="prev-pending-tbody-passenger"></tbody>
+        </table>
+    `;
+
+    dashboardContainer.insertBefore(toggleBtn, dashboardContainer.querySelector('.table-container'));
+    dashboardContainer.insertBefore(pendingContainer, dashboardContainer.querySelector('.table-container'));
+
+    const pendingTbody = document.getElementById('prev-pending-tbody-passenger');
+    
+    if (previousPendingProfiles.length === 0) {
+        pendingTbody.innerHTML = `<tr><td colspan="4" style="padding: 15px; text-align: center; color: var(--text-secondary);">No remaining profiles from previous months.</td></tr>`;
+    } else {
+        previousPendingProfiles.forEach(profile => {
+            const pRow = document.createElement('tr');
+            pRow.style.borderBottom = "1px solid var(--border-color)";
+            const statusText = profile.pickupStatus || 'Not Yet';
+            pRow.innerHTML = `
+                <td style="padding: 10px; color: var(--text-main);">${profile.passengerName || 'N/A'}</td>
+                <td style="padding: 10px; color: var(--text-secondary); font-size: 0.9em;">${profile.date.substr(0, 7)}</td>
+                <td style="padding: 10px;"><span class="status-badge status-unassigned">${statusText}</span></td>
+                <td style="padding: 10px;">
+                    <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
+                        <span class="text">View</span>
+                    </button>
+                </td>
+            `;
+            pendingTbody.appendChild(pRow);
+        });
+    }
+
+    toggleBtn.onclick = () => {
+        const isActive = pendingContainer.classList.toggle('active');
+        document.getElementById('toggle-icon-passenger').textContent = isActive ? 'Hide List ▲' : 'View List ▼';
+    };
+    
+    // 1. Get ALL profiles and filter by the selected month (limited to current user)
+    let allProfiles = invoices.filter(inv => inv.date.startsWith(currentPassengerDashMonth) && inv.passengerId === currentUser.id);
+    
+    // 2. Filter by selected status
     if (currentPassengerDashStatusFilter !== 'all') {
         allProfiles = allProfiles.filter(profile => {
             const status = profile.pickupStatus || 'no status yet';
-            // Match the status AND ensure the profile belongs to the logged-in passenger employee
-            return status === currentPassengerDashStatusFilter && profile.passengerId === currentUser.id;
+            return status === currentPassengerDashStatusFilter;
         });
     }
     
@@ -10355,7 +10468,8 @@ function renderPassengerDashboardSection() {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td style="color: var(--accent);">${profile.date}</td>
-            <td>${profile.passengerName || 'N/A'}</td> <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
+            <td>${profile.passengerName || 'N/A'}</td> 
+            <td>${profile.passengerAgent || (passenger ? passenger.username : 'N/A')}</td>
             <td>AED ${profile.totalBudget.toFixed(2)}</td>
             <td>${driver ? (driver.fullname || driver.username) : 'Not Assigned'}</td>
             <td>
@@ -10484,10 +10598,91 @@ window.filterDriverProfilesByStatus = function(status, btnElement) {
 };
 
 function renderDriverDashboardSection() {
+    const dashboardContainer = document.querySelector('#driver-dashboard-section');
     const tbody = document.querySelector('#driver-dashboard-table tbody');
-    if (!tbody) return;
+    if (!tbody || !dashboardContainer) return;
+
+    // Clean up old UI elements to prevent duplicates
+    const oldToggle = document.getElementById('prev-pending-toggle-btn-driver');
+    if (oldToggle) oldToggle.remove();
+    const oldContainer = document.getElementById('prev-pending-container-driver');
+    if (oldContainer) oldContainer.remove();
     
     tbody.innerHTML = '';
+
+    const realDate = new Date();
+    const realCurrentMonth = realDate.toISOString().substr(0, 7); 
+    
+    // PREVIOUS PENDING LOGIC FOR DRIVER
+    const previousPendingProfiles = invoices.filter(inv => {
+        const invMonth = inv.date.substr(0, 7);
+        const status = inv.pickupStatus || 'no status yet';
+        return invMonth < realCurrentMonth && 
+               inv.driverId === currentUser.id && 
+               (status !== 'pickup confirmed' && status !== 'booked' && status !== 'canceled');
+    });
+
+    const toggleBtn = document.createElement('div');
+    toggleBtn.id = 'prev-pending-toggle-btn-driver';
+    toggleBtn.className = 'previous-pending-toggle';
+    toggleBtn.innerHTML = `
+        <span>⚠️ Previous Month Remaining Profiles (${previousPendingProfiles.length})</span>
+        <span id="toggle-icon-driver" style="background: #ffffff; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold;">View List ▼</span>
+    `;
+    
+    const pendingContainer = document.createElement('div');
+    pendingContainer.id = 'prev-pending-container-driver';
+    pendingContainer.className = 'previous-pending-container';
+    
+    pendingContainer.innerHTML = `
+        <table style="width:100%; border-collapse: collapse; background: rgba(0,0,0,0.05); border-radius: 8px; overflow: hidden;">
+            <thead style="background: rgba(220, 38, 38, 0.15);">
+                <tr>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Name</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Month</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Status</th>
+                    <th style="padding: 12px; color: var(--text-main); text-align:left;">Action</th>
+                </tr>
+            </thead>
+            <tbody id="prev-pending-tbody-driver"></tbody>
+        </table>
+    `;
+
+    dashboardContainer.insertBefore(toggleBtn, dashboardContainer.querySelector('.table-container'));
+    dashboardContainer.insertBefore(pendingContainer, dashboardContainer.querySelector('.table-container'));
+
+    const pendingTbody = document.getElementById('prev-pending-tbody-driver');
+    
+    if (previousPendingProfiles.length === 0) {
+        pendingTbody.innerHTML = `<tr><td colspan="4" style="padding: 15px; text-align: center; color: var(--text-secondary);">No remaining profiles from previous months.</td></tr>`;
+    } else {
+        previousPendingProfiles.forEach(profile => {
+            const pRow = document.createElement('tr');
+            pRow.style.borderBottom = "1px solid var(--border-color)";
+            const statusText = profile.pickupStatus || 'Not Yet';
+            pRow.innerHTML = `
+                <td style="padding: 10px; color: var(--text-main);">${profile.passengerName || 'N/A'}</td>
+                <td style="padding: 10px; color: var(--text-secondary); font-size: 0.9em;">${profile.date.substr(0, 7)}</td>
+                <td style="padding: 10px;"><span class="status-badge status-unassigned">${statusText}</span></td>
+                <td style="padding: 10px;">
+                    <div style="display:flex; gap:8px;">
+                        <button class="bubbles btn-small" onclick="viewInvoiceDetails('${profile.id}')">
+                            <span class="text">View</span>
+                        </button>
+                        <button class="bubbles btn-small btn-success" onclick="confirmPickup('${profile.id}')">
+                            <span class="text">Confirm</span>
+                        </button>
+                    </div>
+                </td>
+            `;
+            pendingTbody.appendChild(pRow);
+        });
+    }
+
+    toggleBtn.onclick = () => {
+        const isActive = pendingContainer.classList.toggle('active');
+        document.getElementById('toggle-icon-driver').textContent = isActive ? 'Hide List ▲' : 'View List ▼';
+    };
     
     // 1. Showing profiles filtered by the selected month
     let allProfiles = invoices.filter(inv => inv.date.startsWith(currentDriverDashMonth));
